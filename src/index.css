@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --color-ink-950: #0b0d10;
+  --color-ink-900: #111418;
+  --color-ink-850: #161a1f;
+  --color-ink-800: #1c2127;
+  --color-ink-700: #262c34;
+  --color-ink-600: #343b45;
+  --color-ink-400: #7b8594;
+  --color-ink-100: #e6e9ee;
+  --color-ink-300: #a3acb9;
+  --color-brand: #f59e0b;
+  --color-brand-soft: #fbbf24;
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-ink-950);
+  color: #e6e9ee;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+.panel {
+  @apply bg-ink-900/85 backdrop-blur-xl border border-white/[0.06] shadow-2xl shadow-black/40;
+}
+.scroll-thin { scrollbar-width: thin; scrollbar-color: #343b45 transparent; }
+.kbd {
+  @apply inline-flex items-center justify-center min-w-5 h-5 px-1 rounded border border-white/10 bg-white/5 text-[10px] font-mono text-ink-300;
+}
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.animate-rise { animation: rise .28s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(245,158,11,.25), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
