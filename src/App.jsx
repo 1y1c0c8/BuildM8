@@ -6,6 +6,7 @@ import { CopilotPanel, useCopilotChat } from './components/CopilotPanel'
 import { BomPanel } from './components/BomPanel'
 import { KeyLayer } from './components/KeyDialogs'
 import { Inspector } from './components/Inspector'
+import { DesignFileDrop } from './components/DesignFileIO'
 import { IconKeyboard, IconSparkle, IconBox, IconCart, IconChevron } from './components/Icons'
 import { useStore } from './store/useStore'
 import { useSidebar } from './store/useSidebar'
@@ -30,6 +31,7 @@ export default function App() {
         <Sidebar />
         <main className="relative flex-1 min-w-0">
           <CanvasArea onTry={runMock} bp={bp} />
+          <DesignFileDrop importAssembly={chat.importAssembly} />
         </main>
         {bp === 'desktop' && (
           <aside className="w-[320px] xl:w-[368px] shrink-0 flex flex-col border-l border-white/[0.06] bg-ink-900/70 backdrop-blur-xl z-10">

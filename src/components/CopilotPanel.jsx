@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ManualBridgeDialog } from './ManualBridge'
+import { DesignFileButtons } from './DesignFileIO'
 import { useStore } from '../store/useStore'
 import { getPackage } from '../data/packages'
 import { runCopilot, validateAssembly, STAGES } from '../ai/copilot'
@@ -88,7 +89,7 @@ export function useCopilotChat() {
   )
 
   /** 手動橋接：使用者從 claude.ai 貼回的設計（已解析的 raw assembly）→ 驗證並拼裝 */
-  const importAssembly = useCallback((raw, request) => {
+  const importAssembly = useCallback((raw, request, source = 'claude.ai（手動）') => {
     const pkg = getPackage(useStore.getState().packageId)
     const assembly = validateAssembly(raw, pkg)
     if (!assembly.items.length) throw new Error('這份設計裡沒有可用的零件（partId 都不在目前的零件包中）。')
@@ -97,7 +98,7 @@ export function useCopilotChat() {
     setMessages((m) => [
       ...m,
       { id: `u${uid}`, role: 'user', text: `📋 ${request?.trim() || '貼上 Claude 的設計'}` },
-      { id: `a${uid}`, role: 'assistant', text: assembly.summary || '已依照 Claude 的設計拼裝到畫布。', assembly, source: 'claude.ai（手動）' },
+      { id: `a${uid}`, role: 'assistant', text: assembly.summary || '已依照 Claude 的設計拼裝到畫布。', assembly, source },
     ])
     return assembly
   }, [])
@@ -184,6 +185,7 @@ export function CopilotPanel({ chat }) {
           用我的 Claude 帳號生成
           <span className="ml-auto text-[10px] text-violet-300/80">免 API 費用</span>
         </button>
+        <DesignFileButtons importAssembly={importAssembly} disabled={busy} />
         <div className="flex gap-1.5 overflow-x-auto scroll-thin pb-2">
           {SUGGESTIONS.map((s) => (
             <button
