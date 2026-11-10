@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { getPackage } from '../data/packages'
 import { runCopilot, validateAssembly, STAGES } from '../ai/copilot'
-import { IconCheck, IconCode, IconSend, IconSettings, IconSparkle, IconX } from './Icons'
+import { getApiKey, selectEffectiveEngine, useKeyStore } from '../store/useKeyStore'
+import { redactSecrets } from '../security/keyVault'
+import { IconCheck, IconCode, IconLock, IconSend, IconSettings, IconSparkle } from './Icons'
 
 const SUGGESTIONS = [
   { label: '⏰ 方形時鐘外殼', text: '我想做一個有厚度的方形時鐘外殼，大約 20 公分' },
@@ -10,14 +12,6 @@ const SUGGESTIONS = [
   { label: '🔲 簡易方形框架', text: '用角鐵和螺條做一個 30 公分的簡易方形框架' },
   { label: '🏭 工業風水管層架', text: '我想做一個工業風水管層架' },
 ]
-
-const loadSettings = () => {
-  try {
-    return JSON.parse(localStorage.getItem('buildm8.ai') || '{}')
-  } catch {
-    return {}
-  }
-}
 
 /** Chat 狀態 hook：讓頂部「AI 模擬生成」按鈕與聊天框共用同一條流程 */
 export function useCopilotChat() {
@@ -29,17 +23,7 @@ export function useCopilotChat() {
     },
   ])
   const [stage, setStage] = useState(null)
-  const [settings, setSettingsState] = useState(() => ({ mode: 'mock', apiKey: '', ...loadSettings() }))
   const busy = stage !== null
-
-  const setSettings = (s) => {
-    setSettingsState(s)
-    try {
-      localStorage.setItem('buildm8.ai', JSON.stringify(s))
-    } catch {
-      /* 私密視窗等情況忽略 */
-    }
-  }
 
   const send = useCallback(
     async (text) => {
@@ -48,11 +32,14 @@ export function useCopilotChat() {
       const uid = Math.random().toString(36).slice(2)
       setMessages((m) => [...m, { id: `u${uid}`, role: 'user', text }])
       setStage('parse')
+      // 金鑰只在呼叫當下從記憶體取出，不放進 React state
+      const useClaude = selectEffectiveEngine(useKeyStore.getState()).engine === 'claude'
+      const apiKey = useClaude ? getApiKey() : undefined
       try {
         const res = await runCopilot(text, {
           pkg,
-          mode: settings.mode === 'claude' && settings.apiKey ? 'claude' : 'mock',
-          apiKey: settings.apiKey,
+          mode: useClaude && apiKey ? 'claude' : 'mock',
+          apiKey,
           onStage: setStage,
         })
         if (res.kind === 'clarify') {
@@ -66,17 +53,17 @@ export function useCopilotChat() {
               role: 'assistant',
               text: res.assembly.summary,
               assembly: res.assembly,
-              source: settings.mode === 'claude' && settings.apiKey ? 'Claude' : 'Mock',
+              source: useClaude && apiKey ? 'Claude' : 'Mock',
             },
           ])
         }
       } catch (err) {
-        setMessages((m) => [...m, { id: `e${uid}`, role: 'assistant', error: true, text: `生成失敗：${err.message}` }])
+        setMessages((m) => [...m, { id: `e${uid}`, role: 'assistant', error: true, text: `生成失敗：${redactSecrets(err?.message ?? '未知錯誤', apiKey)}` }])
       } finally {
         setStage(null)
       }
     },
-    [busy, settings],
+    [busy],
   )
 
   /** 「AI 模擬生成」：直接讀取一段 Mock JSON（模擬 LLM 回傳），走同樣的驗證與拼裝流程 */
@@ -99,13 +86,23 @@ export function useCopilotChat() {
     [busy],
   )
 
-  return { messages, send, runMockJson, stage, busy, settings, setSettings }
+  return { messages, send, runMockJson, stage, busy }
+}
+
+/** 回傳穩定的字串鍵，避免每次 render 產生新物件 */
+const ENGINE_STATES = {}
+function selectEngineStable(s) {
+  const e = selectEffectiveEngine(s)
+  const k = `${e.engine}|${e.reason ?? ''}`
+  return (ENGINE_STATES[k] ??= e)
 }
 
 export function CopilotPanel({ chat }) {
-  const { messages, send, stage, busy, settings, setSettings } = chat
+  const { messages, send, stage, busy } = chat
   const [input, setInput] = useState('')
-  const [showSettings, setShowSettings] = useState(false)
+  const effective = useKeyStore(selectEngineStable)
+  const openSettings = useKeyStore((s) => s.openSettings)
+  const openUnlock = useKeyStore((s) => s.openUnlock)
   const listRef = useRef()
 
   useEffect(() => {
@@ -127,21 +124,29 @@ export function CopilotPanel({ chat }) {
           </div>
           <div className="text-sm font-semibold">AI Copilot</div>
           <span
+            data-testid="engine-chip"
             className={`text-[10px] px-1.5 py-0.5 rounded-md border font-medium ${
-              settings.mode === 'claude' && settings.apiKey
-                ? 'bg-violet-500/10 text-violet-300 border-violet-400/20'
-                : 'bg-white/5 text-ink-300 border-white/10'
+              effective.engine === 'claude' ? 'bg-violet-500/10 text-violet-300 border-violet-400/20' : 'bg-white/5 text-ink-300 border-white/10'
             }`}
           >
-            {settings.mode === 'claude' && settings.apiKey ? 'Claude' : 'Mock'}
+            {effective.engine === 'claude' ? 'Claude' : 'Mock'}
           </span>
+          {effective.reason && (
+            <button
+              data-testid="engine-reason"
+              onClick={effective.reason === '金鑰已上鎖' ? openUnlock : openSettings}
+              title={effective.reason === '金鑰已上鎖' ? '已選擇 Claude，但金鑰上鎖中，暫時使用 Mock。點此解鎖' : '已選擇 Claude，但尚未設定金鑰，暫時使用 Mock。點此設定'}
+              className="text-[10px] px-1.5 py-0.5 rounded-md border font-medium bg-amber-500/10 text-amber-300 border-amber-400/25 hover:bg-amber-500/20 flex items-center gap-1"
+            >
+              {effective.reason === '金鑰已上鎖' && <IconLock size={10} />}
+              {effective.reason}
+            </button>
+          )}
         </div>
-        <button onClick={() => setShowSettings((v) => !v)} className="size-7 grid place-items-center rounded-lg text-ink-400 hover:text-white hover:bg-white/5" title="AI 設定">
+        <button data-testid="open-ai-settings" onClick={openSettings} className="size-7 grid place-items-center rounded-lg text-ink-400 hover:text-white hover:bg-white/5" title="AI 設定">
           <IconSettings size={15} />
         </button>
       </div>
-
-      {showSettings && <SettingsCard settings={settings} onChange={setSettings} onClose={() => setShowSettings(false)} />}
 
       <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto scroll-thin px-4 py-4 space-y-3">
         {messages.map((m) => (
@@ -265,53 +270,6 @@ function StageCard({ stage }) {
           </div>
         ))}
       </div>
-    </div>
-  )
-}
-
-function SettingsCard({ settings, onChange, onClose }) {
-  const [draft, setDraft] = useState(settings)
-  return (
-    <div className="mx-3 mt-3 rounded-xl border border-white/10 bg-ink-850 p-3 animate-rise">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-xs font-semibold">AI 引擎</div>
-        <button onClick={onClose} className="text-ink-400 hover:text-white">
-          <IconX size={14} />
-        </button>
-      </div>
-      <div className="grid grid-cols-2 gap-1 p-0.5 rounded-lg bg-ink-900 border border-white/5 mb-2">
-        {[
-          ['mock', 'Mock（離線示範）'],
-          ['claude', 'Claude API'],
-        ].map(([v, l]) => (
-          <button key={v} onClick={() => setDraft({ ...draft, mode: v })} className={`h-7 rounded-md text-[11px] font-medium ${draft.mode === v ? 'bg-ink-600 text-white' : 'text-ink-300'}`}>
-            {l}
-          </button>
-        ))}
-      </div>
-      {draft.mode === 'claude' && (
-        <>
-          <input
-            type="password"
-            value={draft.apiKey}
-            onChange={(e) => setDraft({ ...draft, apiKey: e.target.value })}
-            placeholder="sk-ant-…"
-            className="w-full h-8 px-2.5 rounded-lg bg-ink-900 border border-white/10 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-brand/40"
-          />
-          <p className="text-[10.5px] text-ink-400 mt-1.5 leading-relaxed">
-            金鑰只存在你的瀏覽器 localStorage，並由瀏覽器直接呼叫 Anthropic API —— 僅適合本機原型；正式上線請改走後端代理。
-          </p>
-        </>
-      )}
-      <button
-        onClick={() => {
-          onChange(draft)
-          onClose()
-        }}
-        className="mt-2 w-full h-8 rounded-lg bg-white text-ink-950 text-xs font-semibold hover:bg-ink-100"
-      >
-        儲存
-      </button>
     </div>
   )
 }
