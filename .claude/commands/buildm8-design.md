@@ -63,4 +63,4 @@ npm run validate-design -- designs/.work/<slug>-X.json
 
 ## 用量提醒
 
-完整流程會啟動 4–5 個子代理人，其中 2 個平行執行，會比單一對話更快消耗 Claude Max 的用量額度。想省用量時用 `/design --quick <需求>`，或在步驟 2 只實作一個概念。
+完整流程會啟動 4–5 個子代理人，其中 2 個平行執行，會比單一對話更快消耗 Claude Max 的用量額度。想省用量時用 `/buildm8-design --quick <需求>`，或在步驟 2 只實作一個概念。

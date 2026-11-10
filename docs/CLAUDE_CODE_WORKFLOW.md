@@ -1,15 +1,19 @@
-# 用 Claude Code 設計 BuildM8 作品（`/design`）
+# 用 Claude Code 設計 BuildM8 作品（`/buildm8-design`）
 
 網站上的「用我的 Claude 帳號生成」是一問一答；這份文件介紹更完整的做法：在專案資料夾裡開 **Claude Code**（Claude Max 訂閱內含，不需要 API 金鑰），輸入
 
 ```
-/design 我想做一個 U 型折板時鐘
+/buildm8-design 我想做一個 U 型折板時鐘
 ```
+
+> **為什麼不叫 `/design`？** claude.ai 內建一個同名的 `/design`（設計畫布），在網頁版會被它攔走，所以專案指令改名為 `/buildm8-design`。
+>
+> **不一定要開 terminal**：Claude Code 的網頁版（claude.ai/code，開新 session 時選這個 repo）、桌面 App（Mac／Windows）、terminal 或 VS Code／JetBrains 擴充套件都能用這個指令與子代理人。網頁版不需要在自己電腦安裝任何東西；截圖工具 `render-design` 需要 Playwright，網頁版雲端環境通常已內建 Chromium。
 
 Claude Code 會派出三種**子代理人**分工合作，產出一份經過**真正幾何驗證**的設計檔 `designs/<slug>.json`，再匯入網站查看、採購、組裝。
 
 ```
-/design 需求
+/buildm8-design 需求
   │
   ├─ design-concept（外觀設計）     → 2–3 個概念：比例、風格、零件草單，推薦前兩名
   ├─ design-engineer × 2（平行）    → 各自用腳本算座標、存檔、跑驗證直到 0 錯誤
@@ -20,7 +24,7 @@ Claude Code 會派出三種**子代理人**分工合作，產出一份經過**�
 
 | 檔案 | 用途 |
 |---|---|
-| `.claude/commands/design.md` | `/design` 指令（總指揮的流程） |
+| `.claude/commands/buildm8-design.md` | `/buildm8-design` 指令（總指揮的流程） |
 | `.claude/agents/design-concept.md` | 外觀設計子代理人（可用網路搜尋參考） |
 | `.claude/agents/design-engineer.md` | 零件工程師子代理人（寫檔、跑腳本） |
 | `.claude/agents/design-reviewer.md` | 審查子代理人（只讀、跑驗證與截圖） |
@@ -37,7 +41,7 @@ npm ci                 # 需要 Node.js 22 以上
 claude                 # 在專案資料夾開啟 Claude Code（第一次會要求登入 Claude 帳號）
 ```
 
-在 Claude Code 裡輸入 `/agents` 應該看得到 `design-concept`、`design-engineer`、`design-reviewer`；輸入 `/` 會出現 `/design`。
+在 Claude Code 裡輸入 `/agents` 應該看得到 `design-concept`、`design-engineer`、`design-reviewer`；輸入 `/` 會出現 `/buildm8-design`。
 
 ### 選用：安裝截圖工具（讓審查員「看得到」設計）
 
@@ -48,10 +52,10 @@ npx playwright install chromium
 
 沒有安裝也能用，審查員會改用尺寸與座標判斷，並在報告註明「未目視檢查」。
 
-## 2. 執行 `/design`
+## 2. 執行 `/buildm8-design`
 
 ```
-/design 我想做一個放在書桌上的 U 型折板時鐘，寬約 20 公分，工業風
+/buildm8-design 我想做一個放在書桌上的 U 型折板時鐘，寬約 20 公分，工業風
 ```
 
 - 需求寫得越具體越好：用途、大約尺寸、放桌上或掛牆、風格、預算。
@@ -61,7 +65,7 @@ npx playwright install chromium
   - `designs/<slug>.md`：設計說明、採購清單（BOM）、組裝步驟、台灣五金行購買提醒
   - `designs/.work/`：草稿與計算腳本（不提交）；`designs/renders/`：截圖（不提交）
 
-**省用量模式：** `/design --quick <需求>` 只做一個概念、一位工程師、不審查，速度快、用量少。
+**省用量模式：** `/buildm8-design --quick <需求>` 只做一個概念、一位工程師、不審查，速度快、用量少。
 
 ## 3. 匯入網站
 
@@ -73,10 +77,10 @@ npx playwright install chromium
 
 - **在網站上手動調整後**：按 **「匯出設計檔」** 下載目前畫布的 JSON，放進 `designs/`，再請 Claude Code 修改：
   ```
-  /design 把 designs/u-fold-clock.json 的螺絲全部改成 M6，整體高度降到 18 公分
+  /buildm8-design 把 designs/u-fold-clock.json 的螺絲全部改成 M6，整體高度降到 18 公分
   ```
   指令偵測到既有檔案時會進入「修改模式」：跳過概念與平行實作，直接由工程師修改，再審查、定稿。
-- **直接請代理人做事**：也可以不經過 `/design`，例如「請 design-reviewer 審查 designs/foo.json」。
+- **直接請代理人做事**：也可以不經過 `/buildm8-design`，例如「請 design-reviewer 審查 designs/foo.json」。
 - **自己檢查**：
   ```bash
   npm run validate-design -- designs/foo.json          # 繁體中文報告
@@ -112,10 +116,10 @@ npm run test:validator
 
 ## 6. 限制
 
-- **用量**：完整 `/design` 會啟動 4–5 個子代理人（其中 2 個平行），比一般對話更快消耗 Claude Max 的用量；常用時請多用 `--quick`。
+- **用量**：完整 `/buildm8-design` 會啟動 4–5 個子代理人（其中 2 個平行），比一般對話更快消耗 Claude Max 的用量；常用時請多用 `--quick`。
 - 包圍盒是近似：圓柱用方盒近似，斜放的零件或很靠近但沒碰到的曲面可能被判為接觸；它抓得到明顯錯誤，但不能取代實際試組。
 - 驗證工具不計算受力、重量或傾倒；穩定性由審查員依比例判斷。
 - 合板上的鑽孔、裁切在畫布上不會顯示，請依說明檔的加工提示施作。
 - 零件尺寸為標準規格近似值，購買前請現場確認。
-- `/design` 需要互動式的 Claude Code；網站本身不會呼叫 Claude Code。
+- `/buildm8-design` 需要互動式的 Claude Code；網站本身不會呼叫 Claude Code。
 - 截圖工具使用開發伺服器的除錯掛鉤 `window.__buildm8`，只在 `npm run dev` 時存在，正式網站沒有。
