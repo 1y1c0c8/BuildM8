@@ -19,7 +19,7 @@ export function Inspector() {
   const label = bomLabel(def, item.params)
 
   return (
-    <div className="absolute left-1/2 -translate-x-1/2 bottom-4 panel rounded-2xl p-3 flex items-stretch gap-3 animate-rise max-w-[calc(100%-32px)]">
+    <div className="absolute inset-x-2 bottom-2 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:bottom-4 md:max-w-[calc(100%-32px)] panel rounded-2xl p-2.5 md:p-3 flex items-stretch gap-3 overflow-x-auto scroll-thin overscroll-x-contain [&>*]:shrink-0 animate-rise z-10">
       <div className="flex items-center gap-2.5 pr-3 border-r border-white/5">
         <div className="size-11 rounded-xl bg-brand/10 text-brand-soft grid place-items-center">
           <PartGlyph type={def.geometry.type} className="size-9" />

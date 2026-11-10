@@ -16,6 +16,7 @@ import { PartsLayer } from './PartMesh'
 import { applySnap, worldAnchors } from './snapping'
 import { registry } from './registry'
 import { S } from './geometry'
+import { useBreakpoint } from '../hooks/useBreakpoint'
 
 const RAD = 180 / Math.PI
 
@@ -39,6 +40,7 @@ export default function Workspace() {
 
 function Scene() {
   const gridStep = useStore((s) => s.gridStep)
+  const bp = useBreakpoint()
   return (
     <>
       <ambientLight intensity={0.35} />
@@ -96,7 +98,7 @@ function Scene() {
         minDistance={8}
         maxDistance={900}
       />
-      <GizmoHelper alignment="bottom-right" margin={[72, 72]}>
+      <GizmoHelper alignment={bp === 'desktop' ? 'bottom-right' : 'top-left'} margin={bp === 'desktop' ? [72, 72] : [52, 104]}>
         <GizmoViewport axisColors={['#ef4444', '#22c55e', '#3b82f6']} labelColor="#0b0d10" />
       </GizmoHelper>
     </>
@@ -120,6 +122,7 @@ function Axes() {
 
 /** 選取物件的 TransformControls + 磁吸 */
 function SelectedTransform() {
+  const bp = useBreakpoint()
   const selectedId = useStore((s) => s.selectedId)
   const mode = useStore((s) => s.mode)
   const items = useStore((s) => s.items)
@@ -185,7 +188,7 @@ function SelectedTransform() {
       ref={(t) => (registry.transform = t)}
       object={obj}
       mode={mode}
-      size={0.85}
+      size={bp === 'mobile' ? 1.25 : bp === 'tablet' ? 1.05 : 0.85}
       rotationSnap={THREE.MathUtils.degToRad(15)}
       onMouseDown={onStart}
       onObjectChange={onChange}
@@ -251,7 +254,10 @@ function CameraRig() {
     items.forEach((i) => box.expandByPoint(new THREE.Vector3(...i.position).multiplyScalar(S)))
     const center = box.getCenter(new THREE.Vector3())
     const size = box.getSize(new THREE.Vector3()).length()
-    const fov = (camera.fov * Math.PI) / 180
+    // 直式手機的水平視角比垂直窄，用兩者中較小的那個來算距離，避免作品左右被裁掉
+    const vfov = (camera.fov * Math.PI) / 180
+    const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect)
+    const fov = Math.min(vfov, hfov)
     const dist = Math.max(45, ((size / 2 + 12) / Math.tan(fov / 2)) * 1.05)
     const dir = new THREE.Vector3(0.75, 0.55, 1).normalize()
     goal.current = { target: center, pos: center.clone().addScaledVector(dir, dist), t: 0 }
