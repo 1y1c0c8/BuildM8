@@ -38,6 +38,26 @@
  * @property {number} priceTWD             參考單價（新台幣；規格表沒有 price 時使用）
  * @property {string[]} [aliases]          給 AI 意圖比對用的俗名（台灣五金行用語）
  * @property {string} [note]
+ * @property {JointDef[]} [joints]          可動關節（鉸鏈開合、腳輪轉向 / 滾動），見下方 JointDef
+ *
+ * @typedef {Object} JointDef  可動關節：讓零件的某個剛體群組繞軸旋轉
+ *   幾何生成器會替每個網格標上 group（省略 = 'base' 固定），錨點也帶 group；
+ *   關節把 moving 群組繞 axis 旋轉 (value − zero) 度，旋轉中心為 origin。
+ * @property {string} id                   關節 ID，也是 AssemblyItem.joints 的 key（例 'angle'）
+ * @property {string} label                顯示名稱（繁體中文）
+ * @property {'revolute'} type             目前只支援旋轉關節
+ * @property {(number|string)[]} axis      旋轉軸（局部座標，會正規化）；正方向 = 數值增加的方向（右手定則）
+ * @property {(number|string)[]} [origin]  旋轉中心（mm，局部座標；預設原點）。可用 '$param'、'@規格表欄位'、
+ *                                         或 '#geometryKey*k'（解析後 geometry 的值 × k，例 '#wheel_d*0.5'）
+ * @property {[number, number]} range      可調範圍（度）
+ * @property {number} default              新零件 / AI 未指定時的值
+ * @property {number} [zero]               幾何原始姿態對應的值（預設 0；鉸鏈 = 180 攤平）
+ * @property {string} [unit]               '°'
+ * @property {string} moving               被帶動的剛體群組（網格 / 錨點的 group）
+ * @property {string} [parent]             巢狀關節：parent 關節也會帶動本關節（腳輪 roll 在 swivel 之內）
+ * @property {boolean} [wrap]              可連續旋轉：超出 range 時取模而非夾住
+ * @property {'heading'|'roll'} [follow]   拖曳整個零件時自動跟隨：heading = 轉向移動方向、roll = 依距離 / radius 滾動
+ * @property {number|string} [radius]      follow: 'roll' 用的滾動半徑（mm，可用 '#wheel_d*0.5'）
  *
  * @typedef {Object} HardwarePackage
  * @property {string} packageId            e.g. 'taiwan_hardware_store_v1'
@@ -60,6 +80,7 @@
  * @property {Record<string, number|string>} [params] 例如 { length: 300 }
  * @property {[number, number, number]} position     mm，Y 軸朝上，地面 y=0
  * @property {[number, number, number]} rotation     度，Euler XYZ
+ * @property {Record<string, number|null> | null} [joints]  關節值（度），例 { angle: 90 }；超出範圍會被夾住
  * @property {string} [note]
  *
  * @typedef {Object} Assembly
@@ -87,7 +108,7 @@ export const ASSEMBLY_JSON_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['partId', 'params', 'position', 'rotation'],
+        required: ['partId', 'params', 'position', 'rotation', 'joints'],
         properties: {
           partId: { type: 'string' },
           params: {
@@ -105,6 +126,22 @@ export const ASSEMBLY_JSON_SCHEMA = {
           },
           position: { type: 'array', items: { type: 'number' } },
           rotation: { type: 'array', items: { type: 'number' } },
+          // 可動零件的關節值（度）；沒有關節的零件填 null
+          joints: {
+            anyOf: [
+              {
+                type: 'object',
+                additionalProperties: false,
+                required: ['angle', 'swivel', 'roll'],
+                properties: {
+                  angle: { anyOf: [{ type: 'number' }, { type: 'null' }] },
+                  swivel: { anyOf: [{ type: 'number' }, { type: 'null' }] },
+                  roll: { anyOf: [{ type: 'number' }, { type: 'null' }] },
+                },
+              },
+              { type: 'null' },
+            ],
+          },
         },
       },
     },

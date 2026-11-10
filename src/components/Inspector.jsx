@@ -1,7 +1,7 @@
 import { useStore } from '../store/useStore'
 import { getPackage } from '../data/packages'
 import { bomLabel } from '../data/parts'
-import { PartGlyph, IconCopy, IconTrash, IconRotate } from './Icons'
+import { PartGlyph, IconCopy, IconTrash, IconRotate, IconUndo } from './Icons'
 
 const AX = ['X', 'Y', 'Z']
 const AX_COLOR = ['text-red-400', 'text-green-400', 'text-blue-400']
@@ -12,7 +12,7 @@ export function Inspector() {
   const selectedId = useStore((s) => s.selectedId)
   const item = useStore((s) => s.items.find((i) => i.uid === s.selectedId))
   const packageId = useStore((s) => s.packageId)
-  const { setParam, updateItem, rotateBy, removeItem, duplicate } = useStore.getState()
+  const { setParam, setJoint, updateItem, rotateBy, removeItem, duplicate } = useStore.getState()
   if (!selectedId || !item) return null
   const def = getPackage(packageId).parts.find((p) => p.id === item.partId)
   if (!def) return null
@@ -49,6 +49,48 @@ export function Inspector() {
               </select>
             </label>
           ))}
+        </div>
+      )}
+
+      {def.joints?.length > 0 && (
+        <div className="flex items-center gap-3 pr-3 border-r border-white/5" data-testid="joint-controls">
+          {def.joints.map((j) => {
+            const v = item.joints?.[j.id] ?? j.default
+            const dflt = j.default ?? j.range[0]
+            return (
+              <div key={j.id} className="flex flex-col gap-0.5 w-[136px] md:w-[150px]">
+                <span className="flex items-center justify-between text-[10px] text-ink-400">
+                  <span className="whitespace-nowrap">{j.label ?? j.id}</span>
+                  <span className="font-mono text-brand-soft" data-testid={`joint-value-${j.id}`}>
+                    {Math.round(v)}
+                    {j.unit ?? '°'}
+                  </span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <input
+                    type="range"
+                    min={j.range[0]}
+                    max={j.range[1]}
+                    step={1}
+                    value={v}
+                    aria-label={j.label ?? j.id}
+                    data-testid={`joint-${j.id}`}
+                    onChange={(e) => setJoint(item.uid, j.id, Number(e.target.value))}
+                    className="flex-1 min-w-0 h-7 accent-brand touch-none cursor-pointer"
+                  />
+                  <button
+                    onClick={() => setJoint(item.uid, j.id, dflt, { record: true })}
+                    disabled={v === dflt}
+                    title={`重設為 ${dflt}${j.unit ?? '°'}`}
+                    aria-label={`重設${j.label ?? j.id}`}
+                    className="size-6 shrink-0 rounded-md grid place-items-center text-ink-300 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent"
+                  >
+                    <IconUndo size={12} />
+                  </button>
+                </span>
+              </div>
+            )
+          })}
         </div>
       )}
 

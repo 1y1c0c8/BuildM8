@@ -1,12 +1,14 @@
 import { create } from 'zustand'
 import { getPackage } from '../data/packages'
-import { defaultParams, normalizeParams, resolvePartRef, restY } from '../data/parts'
+import { defaultJoints, defaultParams, normalizeJoints, normalizeParams, resolvePartRef, restY } from '../data/parts'
 
 let seq = 0
 const uid = () => `p${Date.now().toString(36)}${(seq++).toString(36)}`
 const round = (v, d = 10) => Math.round(v * d) / d
 
 const HISTORY_LIMIT = 80
+const JOINT_COALESCE_MS = 700 // 連續拖動同一個關節滑桿只記一筆歷史
+let lastJointEdit = { tag: '', t: 0 }
 
 /**
  * 場景資料以「mm / 度」保存，與 AI 組合矩陣格式完全一致；
@@ -54,6 +56,7 @@ export const useStore = create((set, get) => ({
       params: p,
       position: position ?? findFreeSpot(get().items, restY(def, p)),
       rotation: rotation ?? [0, 0, 0],
+      ...(def.joints ? { joints: defaultJoints(def) } : {}),
       spawn: { at: performance.now(), delay: 0 },
     }
     set({ items: [...get().items, item], selectedId: item.uid })
@@ -85,6 +88,19 @@ export const useStore = create((set, get) => ({
     get().updateItem(id, { params: normalizeParams(def, { ...it.params, [key]: value }) })
   },
 
+  /** 設定關節值（例 hinge 的 angle）；範圍外會被夾住。record: undefined = 自動合併連續拖動 */
+  setJoint(id, key, value, { record } = {}) {
+    const pkg = getPackage(get().packageId)
+    const it = get().items.find((i) => i.uid === id)
+    const def = pkg.parts.find((p) => p.id === it?.partId)
+    if (!def?.joints) return
+    const now = performance.now()
+    const tag = `${id}:${key}`
+    const rec = record ?? !(lastJointEdit.tag === tag && now - lastJointEdit.t < JOINT_COALESCE_MS)
+    lastJointEdit = { tag, t: now }
+    get().updateItem(id, { joints: normalizeJoints(def, { ...it.joints, [key]: value }) }, { record: rec })
+  },
+
   rotateBy(id, axis, deg) {
     const it = get().items.find((i) => i.uid === id)
     if (!it) return
@@ -106,6 +122,7 @@ export const useStore = create((set, get) => ({
     const copy = {
       ...it,
       uid: uid(),
+      ...(it.joints ? { joints: { ...it.joints } } : {}),
       position: [it.position[0] + 30, it.position[1], it.position[2] + 30],
       spawn: { at: performance.now(), delay: 0 },
     }
@@ -137,6 +154,7 @@ export const useStore = create((set, get) => ({
         params,
         position: (i.position ?? [0, restY(def, params), 0]).map(Number),
         rotation: (i.rotation ?? [0, 0, 0]).map(Number),
+        ...(def.joints ? { joints: normalizeJoints(def, i.joints) } : {}),
         spawn: { at: now, delay: idx * step },
       }
     })

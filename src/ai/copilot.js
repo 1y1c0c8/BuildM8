@@ -16,7 +16,7 @@
  */
 import Anthropic from '@anthropic-ai/sdk'
 import { ASSEMBLY_JSON_SCHEMA, ASSEMBLY_SCHEMA } from '../data/schema'
-import { normalizeParams, resolvePartRef } from '../data/parts'
+import { normalizeJoints, normalizeParams, resolvePartRef } from '../data/parts'
 import { buildCdRack, buildClockCase, buildPipeShelf, buildSquareFrame, buildUPlateClock } from './builders'
 
 export const STAGES = [
@@ -76,7 +76,9 @@ export function validateAssembly(raw, pkg) {
     const params = normalizeParams(def, ref.params)
     const pos = vec3(it.position)
     const rot = vec3(it.rotation)
-    items.push({ partId: def.id, ...(def.params ? { params } : {}), position: pos, rotation: rot })
+    // 關節值超出範圍 → 夾住（wrap 關節取模）；沒給 → 預設值
+    const joints = normalizeJoints(def, it.joints)
+    items.push({ partId: def.id, ...(def.params ? { params } : {}), position: pos, rotation: rot, ...(joints ? { joints } : {}) })
   }
   return { ...raw, schema: ASSEMBLY_SCHEMA, packageId: pkg.packageId, items, warnings }
 }
@@ -154,6 +156,8 @@ export function packageCatalogForLLM(pkg) {
     ...(p.sizes
       ? { sizes: Object.fromEntries(Object.entries(p.sizes).map(([k, row]) => [k, Object.fromEntries(Object.entries(row).filter(([f]) => f !== 'price'))])) }
       : {}),
+    // 可動關節（item.joints 的 key、範圍與預設值）
+    ...(p.joints ? { joints: p.joints.map((j) => ({ id: j.id, label: j.label, range: j.range, default: j.default, unit: j.unit })) } : {}),
   }))
 }
 
@@ -184,7 +188,7 @@ export const buildSystemPrompt = (pkg) => `你是 BuildM8 的五金共創夥伴�
   * gi_cap：原點在開口端面中心，開口朝 -Y、封頭朝 +Y。gi_reducer：中心為原點，大口 +Y、小口 -Y。
   * gi_flange：原點在底面中心，接口朝 +Y。
   * u_bolt：原點在管心，U 形圓弧在 XY 平面朝 +Y，兩腳朝 -Y（夾沿 Z 方向的水管）。
-  * hinge：攤平 180°，原點在軸心，軸沿 Z、兩片葉片沿 ±X，葉片底面在 y = -kd/2。
+  * hinge：（joints.angle = 180 時）攤平，原點在軸心，軸沿 Z、兩片葉片沿 ±X，葉片底面在 y = -kd/2。
   * caster：原點在地面（輪子正上方的旋轉軸），頂板頂面在 y = height，頂板 4 孔。
   * plywood_panel：中心為原點，寬沿 X、深沿 Z、厚沿 Y；pattern=corners 為距邊 15mm 四角孔。
   * u_folded_plate（鍍鋅 U 型折板，size = 內寬 '64' / '89' / '120' / '140'）：原點在底板外面中心，底板厚 t 佔 y∈[0,t]；
@@ -197,6 +201,10 @@ export const buildSystemPrompt = (pkg) => `你是 BuildM8 的五金共創夥伴�
     size = 指針 S / M / L。裝在 U 型折板前板時：rotation [90,0,0]、position = 前板內面中心（軸穿過中心孔，12 點朝上）。
 - 螺帽要確實夾住板材 / 洞洞鐵，螺條必須穿過孔位；零件不可懸空。
 - params 只填該零件有的參數（含 size），其餘填 null。
+- joints（可動關節，單位度）：沒有關節的零件填 null；有關節的零件給 { angle, swivel, roll }，用不到的填 null（= 預設值），超出範圍會被夾住。
+  * hinge：joints.angle = 開合角度 0~180（180 = 攤平、90 = 直角、0 = 闔起）。-X 葉片固定，+X 葉片繞軸心（Z 軸）往 +Y 翻起；
+    角度 90 時活動葉片朝 +Y 立起，孔軸朝 -X。
+  * caster：joints.swivel = 轉向 0~360（0 時輪子在軸心 -Z 側、適合往 +Z 推動；繞 Y 軸旋轉）；joints.roll = 輪子轉動角 0~360（外觀用，可填 null）。
 - steps 用繁體中文、給新手的組裝步驟；summary 說明設計理念。
 
 Package（${pkg.packageId}）：
@@ -236,8 +244,8 @@ const MANUAL_EXAMPLE = {
   summary: '一句話說明設計理念',
   steps: ['步驟一', '步驟二'],
   items: [
-    { partId: 'threaded_rod', params: { size: 'M8', length: 300, width: null, depth: null, thickness: null, pattern: null }, position: [0, 150, 0], rotation: [0, 0, 0] },
-    { partId: 'hex_nut', params: { size: 'M8', length: null, width: null, depth: null, thickness: null, pattern: null }, position: [0, 3.25, 0], rotation: [0, 0, 0] },
+    { partId: 'threaded_rod', params: { size: 'M8', length: 300, width: null, depth: null, thickness: null, pattern: null }, position: [0, 150, 0], rotation: [0, 0, 0], joints: null },
+    { partId: 'hex_nut', params: { size: 'M8', length: null, width: null, depth: null, thickness: null, pattern: null }, position: [0, 3.25, 0], rotation: [0, 0, 0], joints: null },
   ],
 }
 
