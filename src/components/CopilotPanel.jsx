@@ -117,7 +117,8 @@ function selectEngineStable(s) {
 export function CopilotPanel({ chat }) {
   const { messages, send, stage, busy, importAssembly } = chat
   const [input, setInput] = useState('')
-  const [manualOpen, setManualOpen] = useState(false)
+  const [manualOpen, setManualOpen] = useState(null) // null | 'new' | 'revise'
+  const hasDesign = useStore((s) => s.items.length > 0)
   const effective = useKeyStore(selectEngineStable)
   const openSettings = useKeyStore((s) => s.openSettings)
   const openUnlock = useKeyStore((s) => s.openUnlock)
@@ -177,7 +178,7 @@ export function CopilotPanel({ chat }) {
         <button
           type="button"
           data-testid="open-manual-bridge"
-          onClick={() => setManualOpen(true)}
+          onClick={() => setManualOpen('new')}
           disabled={busy}
           className="mb-2 w-full h-9 md:h-8 px-3 rounded-lg text-[12px] font-medium flex items-center gap-2 bg-violet-500/10 border border-violet-400/20 text-violet-200 hover:bg-violet-500/15 hover:border-violet-400/40 transition disabled:opacity-40"
         >
@@ -185,6 +186,19 @@ export function CopilotPanel({ chat }) {
           用我的 Claude 帳號生成
           <span className="ml-auto text-[10px] text-violet-300/80">免 API 費用</span>
         </button>
+        {hasDesign && (
+          <button
+            type="button"
+            data-testid="open-revision"
+            onClick={() => setManualOpen('revise')}
+            disabled={busy}
+            className="-mt-1 mb-2 w-full h-9 md:h-8 px-3 rounded-lg text-[12px] font-medium flex items-center gap-2 bg-ink-800 border border-white/10 text-ink-200 hover:border-violet-400/40 hover:text-white transition disabled:opacity-40"
+          >
+            <span aria-hidden>✏️</span>
+            請 Claude 修改這個設計
+            <span className="ml-auto text-[10px] text-ink-400">附截圖</span>
+          </button>
+        )}
         <div className="flex gap-1.5 overflow-x-auto scroll-thin pb-2">
           {SUGGESTIONS.map((s) => (
             <button
@@ -221,11 +235,12 @@ export function CopilotPanel({ chat }) {
       {manualOpen && (
         <ManualBridgeDialog
           initialRequest={input}
-          onClose={() => setManualOpen(false)}
+          initialMode={manualOpen}
+          onClose={() => setManualOpen(null)}
           onImport={(raw, request) => {
             importAssembly(raw, request)
-            setInput('')
-            setManualOpen(false)
+            if (manualOpen === 'new') setInput('')
+            setManualOpen(null)
           }}
         />
       )}

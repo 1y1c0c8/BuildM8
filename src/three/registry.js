@@ -10,4 +10,5 @@ export const registry = {
   liveJoints: new Map(), // uid → 拖曳中的暫時關節值（腳輪自動轉向 / 滾動），放開後寫回 store
   jointDrag: null, // { uid, id } 正在畫布上拖曳的關節
   startJointDrag: null, // (uid, joint, event) => void
+  captureTarget: null, // { gl, scene, camera }，截圖用（capture.js）
 }
