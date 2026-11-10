@@ -7,6 +7,7 @@ import { BomPanel } from './components/BomPanel'
 import { Inspector } from './components/Inspector'
 import { IconKeyboard, IconSparkle, IconBox } from './components/Icons'
 import { useStore } from './store/useStore'
+import { useSidebar } from './store/useSidebar'
 import { getPackage } from './data/packages'
 import { restY, defaultParams } from './data/parts'
 import { registry } from './three/registry'
@@ -124,6 +125,7 @@ function ShortcutHint() {
     ['G', '移動模式'],
     ['R', '旋轉模式'],
     ['M', '孔洞磁吸開關'],
+    ['[', '收合／展開零件庫'],
     ['Del', '刪除'],
     ['⌘/Ctrl D', '複製'],
     ['⌘/Ctrl Z', '復原'],
@@ -176,6 +178,9 @@ function useShortcuts() {
         s.setMode('rotate')
       } else if (!mod && e.key === 'm') {
         s.toggleMagnet()
+      } else if (!mod && !e.altKey && e.key === '[') {
+        e.preventDefault()
+        useSidebar.getState().toggle()
       }
     }
     window.addEventListener('keydown', onKey)
