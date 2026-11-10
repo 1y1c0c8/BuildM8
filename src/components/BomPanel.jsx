@@ -15,7 +15,7 @@ export function useBom() {
       const def = pkg.parts.find((p) => p.id === it.partId)
       if (!def) continue
       const k = bomKey(it)
-      const row = map.get(k) ?? { key: k, def, ...bomLabel(def, it.params), qty: 0, price: def.priceTWD }
+      const row = map.get(k) ?? { key: k, def, ...bomLabel(def, it.params), qty: 0 }
       row.qty += 1
       map.set(k, row)
     }
@@ -25,7 +25,7 @@ export function useBom() {
     return { rows, total, count }
   }, [items, packageId])
 }
-const ORDER = ['panel', 'pipe', 'fitting', 'profile', 'bracket', 'rod', 'fastener']
+const ORDER = ['panel', 'pipe', 'fitting', 'profile', 'bracket', 'hardware', 'rod', 'fastener']
 const order = (def) => ORDER.indexOf(def.category)
 
 export function BomPanel() {

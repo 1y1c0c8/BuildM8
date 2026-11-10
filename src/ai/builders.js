@@ -17,13 +17,18 @@ const P = (partId, position, rotation = [0, 0, 0], params) => ({
   position: position.map(r1),
   rotation,
 })
+// 尺寸家族：mock 設計固定使用 M8 螺牙與 4 分（15A）水管
+const M8 = { size: 'M8' }
+const A15 = { size: '15A' }
+const P8 = (partId, position, rotation = [0, 0, 0], params = {}) => P(partId, position, rotation, { ...M8, ...params })
+const P15 = (partId, position, rotation = [0, 0, 0], params = {}) => P(partId, position, rotation, { ...A15, ...params })
 
 /** ① 簡易方形框架：4 支 M8 螺條 + 上下兩圈洞洞鐵 + L 角鐵立耳 */
 export function buildSquareFrame(pkg, { size = 300, height = 300 } = {}) {
   const bar = geo(pkg, 'perforated_bar', { length: size })
-  const nut = geo(pkg, 'hex_nut_m8')
-  const wsh = geo(pkg, 'washer_m8')
-  const cap = geo(pkg, 'cap_nut_m8')
+  const nut = geo(pkg, 'hex_nut', M8)
+  const wsh = geo(pkg, 'washer', M8)
+  const cap = geo(pkg, 'cap_nut', M8)
   const br = geo(pkg, 'l_bracket')
   const holes = barHoles(bar)
   const c = holes[holes.length - 1] // 最外側孔中心
@@ -58,16 +63,16 @@ export function buildSquareFrame(pkg, { size = 300, height = 300 } = {}) {
   }
   for (const [x, z] of corners) {
     const sx = Math.sign(x)
-    items.push(P('threaded_rod_m8', [x, height / 2, z], [0, 0, 0], { length: height }))
+    items.push(P8('threaded_rod', [x, height / 2, z], [0, 0, 0], { length: height }))
     items.push(P('l_bracket', [x + sx * br.hole_offset, yBr, z], [0, sx > 0 ? 180 : 0, 0]))
-    items.push(P('hex_nut_m8', [x, yNutB, z]))
-    items.push(P('washer_m8', [x, yW, z]))
-    items.push(P('hex_nut_m8', [x, yNutT, z]))
-    items.push(P('hex_nut_m8', [x, uNut1, z]))
-    items.push(P('washer_m8', [x, uW1, z]))
-    items.push(P('washer_m8', [x, uW2, z]))
-    items.push(P('hex_nut_m8', [x, uNut2, z]))
-    items.push(P('cap_nut_m8', [x, Math.max(capBase, u), z]))
+    items.push(P8('hex_nut', [x, yNutB, z]))
+    items.push(P8('washer', [x, yW, z]))
+    items.push(P8('hex_nut', [x, yNutT, z]))
+    items.push(P8('hex_nut', [x, uNut1, z]))
+    items.push(P8('washer', [x, uW1, z]))
+    items.push(P8('washer', [x, uW2, z]))
+    items.push(P8('hex_nut', [x, uNut2, z]))
+    items.push(P8('cap_nut', [x, Math.max(capBase, u), z]))
   }
 
   return {
@@ -89,9 +94,9 @@ export function buildSquareFrame(pkg, { size = 300, height = 300 } = {}) {
 /** ② 有厚度的方形時鐘外殼：前後兩片合板 + 4 支螺條當間隔柱 */
 export function buildClockCase(pkg, { size = 200, depth = 40 } = {}) {
   const front = geo(pkg, 'plywood_panel', { width: size, depth: size, thickness: 6, pattern: 'corners' })
-  const nut = geo(pkg, 'hex_nut_m8')
-  const wsh = geo(pkg, 'washer_m8')
-  const cap = geo(pkg, 'cap_nut_m8')
+  const nut = geo(pkg, 'hex_nut', M8)
+  const wsh = geo(pkg, 'washer', M8)
+  const cap = geo(pkg, 'cap_nut', M8)
   const t = front.thickness
   const half = depth / 2
   const rodLen = depth + 2 * t + 2 * (wsh.t + cap.m) + 2
@@ -105,11 +110,11 @@ export function buildClockCase(pkg, { size = 200, depth = 40 } = {}) {
     // 板子繞 X 轉 90°：局部 z → 世界 -y
     const x = hx
     const y = cy - hz
-    items.push(P('threaded_rod_m8', [x, y, 0], [90, 0, 0], { length: Math.round(rodLen) }))
+    items.push(P8('threaded_rod', [x, y, 0], [90, 0, 0], { length: Math.round(rodLen) }))
     for (const s of [1, -1]) {
-      items.push(P('hex_nut_m8', [x, y, s * (half - nut.m / 2)], [90, 0, 0]))
-      items.push(P('washer_m8', [x, y, s * (half + t + wsh.t / 2)], [90, 0, 0]))
-      items.push(P('cap_nut_m8', [x, y, s * (half + t + wsh.t)], [s * 90, 0, 0]))
+      items.push(P8('hex_nut', [x, y, s * (half - nut.m / 2)], [90, 0, 0]))
+      items.push(P8('washer', [x, y, s * (half + t + wsh.t / 2)], [90, 0, 0]))
+      items.push(P8('cap_nut', [x, y, s * (half + t + wsh.t)], [s * 90, 0, 0]))
     }
   }
 
@@ -132,9 +137,9 @@ export function buildClockCase(pkg, { size = 200, depth = 40 } = {}) {
 /** ③ CD 收納展示架：合板底座 + 16 支螺條當隔柱 */
 export function buildCdRack(pkg, { width = 360, rodHeight = 150 } = {}) {
   const base = geo(pkg, 'plywood_panel', { width, depth: 160, thickness: 12, pattern: 'rack_2x8' })
-  const nut = geo(pkg, 'hex_nut_m8')
-  const wsh = geo(pkg, 'washer_m8')
-  const cap = geo(pkg, 'cap_nut_m8')
+  const nut = geo(pkg, 'hex_nut', M8)
+  const wsh = geo(pkg, 'washer', M8)
+  const cap = geo(pkg, 'cap_nut', M8)
   const items = []
   let y = 0
   const yNut1 = y + nut.m / 2; y += nut.m
@@ -145,12 +150,12 @@ export function buildCdRack(pkg, { width = 360, rodHeight = 150 } = {}) {
 
   items.push(P('plywood_panel', [0, yBase, 0], [0, 0, 0], { width, depth: 160, thickness: 12, pattern: 'rack_2x8' }))
   for (const [x, z] of panelHoles(base)) {
-    items.push(P('threaded_rod_m8', [x, rodHeight / 2, z], [0, 0, 0], { length: rodHeight }))
-    items.push(P('hex_nut_m8', [x, yNut1, z]))
-    items.push(P('washer_m8', [x, yW1, z]))
-    items.push(P('washer_m8', [x, yW2, z]))
-    items.push(P('hex_nut_m8', [x, yNut2, z]))
-    items.push(P('cap_nut_m8', [x, rodHeight - (cap.h - 3), z]))
+    items.push(P8('threaded_rod', [x, rodHeight / 2, z], [0, 0, 0], { length: rodHeight }))
+    items.push(P8('hex_nut', [x, yNut1, z]))
+    items.push(P8('washer', [x, yW1, z]))
+    items.push(P8('washer', [x, yW2, z]))
+    items.push(P8('hex_nut', [x, yNut2, z]))
+    items.push(P8('cap_nut', [x, rodHeight - (cap.h - 3), z]))
   }
   const slot = (width - 50) / 7
   return {
@@ -170,10 +175,10 @@ export function buildCdRack(pkg, { width = 360, rodHeight = 150 } = {}) {
 
 /** ④ 工業風水管層架：4 分鍍鋅管 + 三通 + 彎頭 + 地板法蘭 + 兩片層板 */
 export function buildPipeShelf(pkg, { span = 200, rise = 300 } = {}) {
-  const pipe = geo(pkg, 'gi_pipe_15a', { length: span })
-  const tee = geo(pkg, 'gi_tee_15a')
-  const elbow = geo(pkg, 'gi_elbow_15a')
-  const fl = geo(pkg, 'gi_flange_15a')
+  const pipe = geo(pkg, 'gi_pipe', { ...A15, length: span })
+  const tee = geo(pkg, 'gi_tee', A15)
+  const elbow = geo(pkg, 'gi_elbow', A15)
+  const fl = geo(pkg, 'gi_flange', A15)
   const rT = tee.a - tee.engage
   const rE = elbow.a - elbow.engage
   const zLeg = span / 2 + rT // 前後腳中心 z
@@ -188,14 +193,14 @@ export function buildPipeShelf(pkg, { span = 200, rise = 300 } = {}) {
   for (const x of [-xSide, xSide]) {
     for (const s of [-1, 1]) {
       const z = s * zLeg
-      items.push(P('gi_flange_15a', [x, 0, z]))
-      items.push(P('gi_pipe_15a', [x, yPipe1, z], [0, 0, 0], { length: rise }))
-      items.push(P('gi_tee_15a', [x, yTee, z], s < 0 ? [0, 90, 90] : [0, -90, 90]))
-      items.push(P('gi_pipe_15a', [x, yPipe2, z], [0, 0, 0], { length: rise }))
-      items.push(P('gi_elbow_15a', [x, yElbow, z], s < 0 ? [180, 90, 0] : [180, -90, 0]))
+      items.push(P15('gi_flange', [x, 0, z]))
+      items.push(P15('gi_pipe', [x, yPipe1, z], [0, 0, 0], { length: rise }))
+      items.push(P15('gi_tee', [x, yTee, z], s < 0 ? [0, 90, 90] : [0, -90, 90]))
+      items.push(P15('gi_pipe', [x, yPipe2, z], [0, 0, 0], { length: rise }))
+      items.push(P15('gi_elbow', [x, yElbow, z], s < 0 ? [180, 90, 0] : [180, -90, 0]))
     }
-    items.push(P('gi_pipe_15a', [x, yTee, 0], [90, 0, 0], { length: span }))
-    items.push(P('gi_pipe_15a', [x, yElbow, 0], [90, 0, 0], { length: span }))
+    items.push(P15('gi_pipe', [x, yTee, 0], [90, 0, 0], { length: span }))
+    items.push(P15('gi_pipe', [x, yElbow, 0], [90, 0, 0], { length: span }))
   }
   const shelfW = xSide * 2 + 80
   const shelfD = Math.round(zLeg * 2 + 60)
