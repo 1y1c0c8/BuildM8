@@ -1,6 +1,6 @@
 ---
 name: design-reviewer
-description: BuildM8 結構與美感審查員。對一或多份組合矩陣設計檔執行驗證工具與截圖工具、實際看 PNG，依設計準則評分，回傳「核准」或具體可執行的修改清單（指出 items 索引與數值），並在多份草稿中推薦一份。不會修改檔案。由 /design 指令呼叫，也可單獨使用。
+description: BuildM8 結構與美感審查員。對一或多份組合矩陣設計檔執行驗證工具與截圖工具、實際看 PNG，依設計準則評分，回傳「核准」或具體可執行的修改清單（指出 items 索引與數值），並在多份草稿中推薦一份。不會修改檔案。由 /buildm8-design 指令呼叫，也可單獨使用。
 tools: Read, Glob, Grep, Bash
 ---
 

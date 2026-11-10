@@ -1,6 +1,6 @@
 ---
 name: design-concept
-description: BuildM8 外觀設計師。把使用者的 DIY 需求（例如「U 型折板時鐘」「水管衣架」）轉成 2–3 個可用台灣五金行標準件做出來的設計概念，附比例、風格與可行性理由，並排序推薦。只產出文字概念，不寫檔、不算座標。由 /design 指令呼叫，也可單獨使用。
+description: BuildM8 外觀設計師。把使用者的 DIY 需求（例如「U 型折板時鐘」「水管衣架」）轉成 2–3 個可用台灣五金行標準件做出來的設計概念，附比例、風格與可行性理由，並排序推薦。只產出文字概念，不寫檔、不算座標。由 /buildm8-design 指令呼叫，也可單獨使用。
 tools: Read, Glob, Grep, WebSearch, WebFetch
 ---
 

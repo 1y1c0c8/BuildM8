@@ -25,7 +25,7 @@ npm run dev      # 開啟 http://localhost:5173
 | **請 Claude 修改這個設計** | 畫布上有作品時，AI 面板多一顆按鈕：複製 / 下載目前 3D 畫面的 PNG 截圖、輸入想怎麼改，複製含目前設計 JSON 的修改提示詞，讓 Claude 對照截圖與設計指南評論並輸出完整新版，貼回即套用（瀏覽器不能複製圖片時自動改為下載） |
 | **採購清單 BOM** | 即時合併相同規格，顯示標準號與數量，可複製文字或匯出 CSV 帶去五金行 |
 | **設計檔匯入 / 匯出** | 「匯入設計檔（.json）」或把 .json 拖到畫布；「匯出設計檔」把目前畫布存成 JSON |
-| **Claude Code `/design`** | 在專案裡用 Claude Code 子代理人（外觀設計 → 平行實作 → 審查）產生經過幾何驗證的設計檔，見 [`docs/CLAUDE_CODE_WORKFLOW.md`](docs/CLAUDE_CODE_WORKFLOW.md) |
+| **Claude Code `/buildm8-design`** | 在專案裡用 Claude Code 子代理人（外觀設計 → 平行實作 → 審查）產生經過幾何驗證的設計檔，見 [`docs/CLAUDE_CODE_WORKFLOW.md`](docs/CLAUDE_CODE_WORKFLOW.md) |
 
 ## 專案結構
 
@@ -62,7 +62,7 @@ npm run test:validator                        # 驗證工具自我測試（參�
 npm run render-design -- designs/foo.json     # 選用：無頭瀏覽器截圖（需 Playwright）
 ```
 
-在 Claude Code 輸入 `/design 我想做一個 U 型折板時鐘` 即可啟動完整流程，詳見 [`docs/CLAUDE_CODE_WORKFLOW.md`](docs/CLAUDE_CODE_WORKFLOW.md)。
+在 Claude Code 輸入 `/buildm8-design 我想做一個 U 型折板時鐘` 即可啟動完整流程，詳見 [`docs/CLAUDE_CODE_WORKFLOW.md`](docs/CLAUDE_CODE_WORKFLOW.md)。
 
 ## 注意
 

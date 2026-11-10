@@ -1,6 +1,6 @@
 ---
 name: design-engineer
-description: BuildM8 零件工程師。把一個選定的設計概念實作成 buildm8.assembly/v1 組合矩陣 JSON：只用零件包內的標準件、用腳本依目錄尺寸計算每個零件的座標，存檔後反覆執行 npm run validate-design 直到 0 錯誤。由 /design 指令呼叫（可平行執行多個），也可單獨用來修改既有設計檔。
+description: BuildM8 零件工程師。把一個選定的設計概念實作成 buildm8.assembly/v1 組合矩陣 JSON：只用零件包內的標準件、用腳本依目錄尺寸計算每個零件的座標，存檔後反覆執行 npm run validate-design 直到 0 錯誤。由 /buildm8-design 指令呼叫（可平行執行多個），也可單獨用來修改既有設計檔。
 tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
