@@ -18,6 +18,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { ASSEMBLY_JSON_SCHEMA, ASSEMBLY_SCHEMA } from '../data/schema'
 import { normalizeJoints, normalizeParams, resolvePartRef } from '../data/parts'
 import { buildCdRack, buildClockCase, buildPipeShelf, buildSquareFrame, buildUPlateClock } from './builders'
+import { designGuideText } from './designGuide'
 
 export const STAGES = [
   { key: 'parse', label: '解析需求' },
@@ -249,57 +250,228 @@ const MANUAL_EXAMPLE = {
   ],
 }
 
-/** 產生可直接貼到 claude.ai 的完整提示詞 */
-export function buildManualPrompt(request, pkg) {
-  return `${buildSystemPrompt(pkg)}
+const HR = '════════════════════════'
 
-────────────────────────
-輸出格式（非常重要）：
-- 只回覆「一個 JSON 物件」，不要任何前言、說明或結語；可以用 \`\`\`json 程式碼框包起來。
-- 請直接在對話中輸出 JSON，不要建立 Artifact 或檔案。
+/** 角色 3 檢查員的清單（新設計與修改共用） */
+const INSPECTOR_CHECKLIST = `逐項檢查，以 ✔ / ✘ 列出；有 ✘ 就先修正座標或零件，再進入最終輸出：
+1. 每個 partId 都在 Package 目錄中，params.size 是該零件的有效規格。
+2. 牙規 / 管徑一致（整件一種為佳）；長度是現貨規格，或該參數標示可裁切（custom）。
+3. 每顆螺帽都確實夾住東西（板材、洞洞鐵、另一顆螺帽），木板上的螺帽有墊華司。
+4. 沒有懸空件：每個零件都接觸地面（y=0）或另一個零件。
+5. 零件互不穿插（螺條 / 螺栓穿過孔位除外）。
+6. 螺條 / 螺栓的中心線對準孔位中心，且長度足夠穿過全部疊層再加一顆螺帽。
+7. 應該對稱的地方，座標確實對稱（例 ±x 相同）。
+8. 重心在支撐面內、站得穩；外露的螺條末端已收邊。`
+
+/** 最終輸出規則（新設計與修改共用） */
+const outputRules = () => `- 回覆的最後面輸出「唯一一個」\`\`\`json 程式碼框，內容是完整的設計；程式碼框之後不要再寫任何文字。
+- 前面的分析、表格、計算都不要放進 \`\`\`json 框，也不要輸出草稿 JSON。
+- 直接在對話中輸出，不要建立 Artifact 或檔案；回覆太長被截斷時，使用者會請你「繼續」。
+- 前面的角色段落請精簡（合計約 40 行內），把篇幅留給完整、正確的 JSON。
 - JSON 結構必須符合這份 JSON Schema：
 ${JSON.stringify(ASSEMBLY_JSON_SCHEMA)}
-- 範例（只示範格式，內容請依需求設計）：
-${JSON.stringify(MANUAL_EXAMPLE)}
+- 格式範例（只示範格式，內容請依需求設計）：
+${JSON.stringify(MANUAL_EXAMPLE)}`
 
-────────────────────────
-使用者需求：
+const IMAGE_ANALYSIS = `## 角色 0　參考圖片分析（使用者附上了參考圖片）
+先逐張看圖，條列：整體風格、主要比例（估計長寬高比）、接合方式（螺條 / 水管管件 / 角鐵 / 木作）、材質與顏色、哪些特徵能用 Package 零件重現、哪些做不到要怎麼取捨。之後的概念要呼應這些觀察。`
+
+/**
+ * 產生可直接貼到 claude.ai 的完整提示詞：在一則回覆中依序扮演
+ * 設計師 → 工程師 → 檢查員，最後輸出一段 JSON。
+ * @param {string} request 使用者需求
+ * @param {object} pkg Package
+ * @param {{ style?: string, withImages?: boolean }} [options]
+ */
+export function buildManualPrompt(request, pkg, { style, withImages = false } = {}) {
+  return `${buildSystemPrompt(pkg)}
+
+${designGuideText({ style })}
+
+${HR}
+工作流程（非常重要）：在同一則回覆中依序扮演下列角色，每個角色用 Markdown 標題分段，最後輸出 JSON。
+${withImages ? `\n${IMAGE_ANALYSIS}\n` : ''}
+## 角色 1　設計師
+- 重述需求：用途、尺寸（沒給就依用途假設合理尺寸並寫出來）、擺放位置（桌上 / 地面 / 掛牆）。
+- 提出 3 個明顯不同的概念，每個寫：名稱、文字草圖（一兩句描述外形）、主要比例（mm）、依設計指南為什麼好看、預估零件數與種類數。
+- 用表格評分（美觀 / 穩定 / 好做 / 零件少，各 1–5 分），選出最佳概念並說明理由。
+
+## 角色 2　工程師
+- 把選定概念對應到 Package 零件（partId + size + length），列出零件表與數量。
+- 用目錄中的實際尺寸逐一計算座標：堆疊高度（螺帽厚、華司厚、板厚、洞洞鐵厚）、孔位（距板邊、孔距）、管件中心距 a 與插入深度 engage、旋轉後的方向。
+- 在 JSON 之前列一張精簡計算表（Markdown 表格）：零件 | 數量 | 位置計算式 | 結果 (mm)。
+
+## 角色 3　檢查員
+${INSPECTOR_CHECKLIST}
+
+## 最終輸出
+${outputRules()}
+
+${HR}
+使用者需求${style ? `（風格：${style}）` : ''}：
 ${request.trim()}`
+}
+
+/** 把畫布上的零件（store items，mm / 度）轉成符合 Schema 的組合矩陣，給修改提示詞用 */
+export function assemblyForPrompt(items, meta = {}) {
+  const KEYS = ['size', 'length', 'width', 'depth', 'thickness', 'pattern']
+  const r = (v) => Math.round(Number(v) * 10) / 10 || 0
+  return {
+    title: meta.title || '目前的設計',
+    summary: meta.summary || '',
+    steps: Array.isArray(meta.steps) ? meta.steps : [],
+    items: (items ?? []).map((it) => ({
+      partId: it.partId,
+      params: Object.fromEntries(KEYS.map((k) => [k, it.params?.[k] ?? null])),
+      position: (it.position ?? [0, 0, 0]).map(r),
+      rotation: (it.rotation ?? [0, 0, 0]).map(r),
+      // 可動關節（鉸鏈 / 腳輪）：沒有關節的零件填 null，與 ASSEMBLY_JSON_SCHEMA 一致
+      joints: it.joints && Object.keys(it.joints).length
+        ? { angle: it.joints.angle ?? null, swivel: it.joints.swivel ?? null, roll: it.joints.roll ?? null }
+        : null,
+    })),
+  }
+}
+
+/**
+ * 「請 Claude 修改這個設計」：目前設計 JSON + 使用者回饋 + 截圖評論 → 完整的新 JSON
+ * @param {{ assembly: object, feedback?: string, pkg: object, style?: string,
+ *           withScreenshot?: boolean, sameChat?: boolean }} opts
+ *   sameChat：在原本的 claude.ai 對話接續時不重附零件目錄（縮短提示詞）
+ */
+export function buildRevisionPrompt({ assembly, feedback = '', pkg, style, withScreenshot = true, sameChat = false }) {
+  const head = sameChat
+    ? '沿用這個對話前面的 BuildM8 零件目錄、座標規則與設計指南。'
+    : `${buildSystemPrompt(pkg)}\n\n${designGuideText({ style })}`
+  return `${head}
+
+${HR}
+修改任務：下方是目前 3D 畫布上的設計（BuildM8 組合矩陣，單位 mm / 度）${withScreenshot ? '，我也附上了目前畫面的截圖' : ''}。請改善它，並輸出修改後的完整設計。
+在同一則回覆中依序扮演下列角色，每個角色用 Markdown 標題分段。
+
+## 角色 1　評論員
+${withScreenshot ? '- 先看截圖，對照 JSON 找出每個零件；描述你在畫面上看到的整體印象。\n' : ''}- 依設計指南逐項評論：比例、對稱與對齊、重複節奏、視覺重量、扣件一致、材質與留白、新手好做。
+- 找出結構問題：懸空、穿插、螺帽沒夾住、螺條沒穿孔、站不穩。
+- 列出最值得改的 3–5 點（先處理使用者回饋提到的）。
+
+## 角色 2　設計師兼工程師
+- 依使用者回饋與評論提出修改方案，說明改了什麼、為什麼更好看或更穩。
+- 重新計算受影響零件的座標，列精簡計算表（零件 | 位置計算式 | 結果 mm）；沒改到的零件保持原座標。
+
+## 角色 3　檢查員
+${INSPECTOR_CHECKLIST}
+
+## 最終輸出
+- 輸出修改後的「完整」設計（包含沒有改動的零件），不是只有差異。
+${outputRules()}
+
+目前的設計：
+\`\`\`json
+${JSON.stringify(assembly)}
+\`\`\`
+
+${HR}
+使用者回饋${style ? `（風格：${style}）` : ''}：
+${feedback.trim() || '（沒有特別意見，請依設計指南自行改善外觀與結構）'}`
+}
+
+// ---------------------------------------------------------------------------
+// 解析貼回的回覆
+// ---------------------------------------------------------------------------
+
+/** 找出文字中所有「括號平衡」的 JSON 片段（略過字串內的括號；只從像 JSON 的開頭起算） */
+function jsonSpans(src) {
+  const spans = []
+  const looksLikeJson = (i) => {
+    const rest = src.slice(i + 1, i + 40).trimStart()
+    return src[i] === '{' ? /^["}]/.test(rest) : /^[{\["\]]/.test(rest)
+  }
+  let i = 0
+  while (i < src.length) {
+    const ch = src[i]
+    if ((ch !== '{' && ch !== '[') || !looksLikeJson(i)) {
+      i++
+      continue
+    }
+    let depth = 0
+    let inStr = false
+    let end = -1
+    for (let j = i; j < src.length; j++) {
+      const c = src[j]
+      if (inStr) {
+        if (c === '\\') j++
+        else if (c === '"') inStr = false
+      } else if (c === '"') inStr = true
+      else if (c === '{' || c === '[') depth++
+      else if (c === '}' || c === ']') {
+        depth--
+        if (depth === 0) {
+          end = j
+          break
+        }
+      }
+    }
+    if (end > 0) {
+      spans.push({ start: i, text: src.slice(i, end + 1) })
+      i = end + 1
+    } else i++
+  }
+  return spans
+}
+
+/** 把解析出的 JSON 正規化成 { items, ... }；不是組合矩陣時回傳 null */
+function asAssembly(parsed) {
+  if (Array.isArray(parsed)) parsed = { items: parsed }
+  if (parsed && Array.isArray(parsed.assembly?.items)) parsed = parsed.assembly
+  if (!parsed || !Array.isArray(parsed.items) || !parsed.items.length) return null
+  if (!parsed.items.some((it) => it && typeof it === 'object' && typeof it.partId === 'string')) return null
+  return parsed
 }
 
 /**
  * 解析使用者從 claude.ai 貼回來的文字：容許前後說明文字、\`\`\`json 程式碼框、
- * 或只有 items 陣列。失敗時丟出繁體中文錯誤訊息。
+ * 或只有 items 陣列。回覆中有多個程式碼框（計算表、草稿、最終版）時，
+ * 取「最後一個完整的」組合矩陣（優先有 title / steps 的完整設計）。
+ * 失敗時丟出繁體中文錯誤訊息。
  */
 export function parseAssemblyText(text) {
-  const src = String(text ?? '').replace(/^\uFEFF/, '').trim()
+  const src = String(text ?? '').replace(/^﻿/, '').trim()
   if (!src) throw new Error('還沒有貼上內容。')
-  const candidates = []
-  for (const m of src.matchAll(/\`\`\`(?:json|JSON)?\s*([\s\S]*?)\`\`\`/g)) candidates.push(m[1].trim())
-  const first = src.search(/[[{]/)
-  if (first >= 0) {
-    const lastObj = src.lastIndexOf('}')
-    const lastArr = src.lastIndexOf(']')
-    const last = Math.max(lastObj, lastArr)
-    if (last > first) candidates.push(src.slice(first, last + 1))
-  }
-  candidates.push(src)
-  let parsed
+
+  const fenced = [...src.matchAll(/```[\w-]*[ \t]*\r?\n?([\s\S]*?)```/g)].map((m) => m[1].trim())
+  // 程式碼框沒有收尾（回覆被截斷或只複製到一半）：把最後一個開頭之後的內容也當候選
+  const lastOpen = src.lastIndexOf('```')
+  if ((src.match(/```/g)?.length ?? 0) % 2 === 1) fenced.push(src.slice(lastOpen + 3).replace(/^[\w-]*/, '').trim())
+
+  let parsedAny = false
   let lastErr
-  for (const c of candidates) {
+  const tryParse = (c) => {
     try {
-      parsed = JSON.parse(c)
-      break
+      const v = JSON.parse(c)
+      parsedAny = true
+      return asAssembly(v)
     } catch (e) {
       lastErr = e
+      return null
     }
   }
-  if (parsed === undefined) {
-    throw new Error(`看不懂這段內容，請確認有完整複製 Claude 回覆的 JSON（${lastErr?.message ?? '格式錯誤'}）。若回覆被截斷，請請 Claude「繼續」後把完整 JSON 一起貼上。`)
+  const pick = (list) => {
+    const found = list.map(tryParse).filter(Boolean)
+    if (!found.length) return null
+    const complete = found.filter((a) => a.title || a.steps)
+    return (complete.length ? complete : found).at(-1)
   }
-  if (Array.isArray(parsed)) parsed = { items: parsed }
-  if (parsed && Array.isArray(parsed.assembly?.items)) parsed = parsed.assembly
-  if (!parsed || !Array.isArray(parsed.items) || !parsed.items.length) {
+
+  const parsed =
+    pick(fenced) ??
+    pick(fenced.flatMap((f) => jsonSpans(f).map((s) => s.text))) ??
+    pick([src]) ??
+    pick(jsonSpans(src).map((s) => s.text))
+
+  if (!parsed) {
+    if (!parsedAny) {
+      throw new Error(`看不懂這段內容，請確認有完整複製 Claude 回覆的 JSON（${lastErr?.message ?? '格式錯誤'}）。若回覆被截斷，請請 Claude「繼續」後把完整 JSON 一起貼上。`)
+    }
     throw new Error('JSON 裡找不到 items 零件清單。請確認貼上的是 Claude 依照提示詞輸出的設計結果。')
   }
   return {

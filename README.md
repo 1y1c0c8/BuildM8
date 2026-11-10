@@ -21,6 +21,8 @@ npm run dev      # 開啟 http://localhost:5173
 | **五金 Package 側欄** | `taiwan_hardware_store_v1`：洞洞鐵、L 角鐵、M8 螺條 / 螺栓 / 螺帽 / 蓋帽 / 華司、4 分鍍鋅管、三通、彎頭、法蘭、合板、鍍鋅 U 型折板、時鐘機芯（掃秒）；點擊或拖曳加入 |
 | **AI Copilot** | 輸入「我想做一個有厚度的方形時鐘外殼」等需求 → 解析 → 比對零件 → 產生組合矩陣 → 驗證 → 自動拼裝；預設 Mock，可在 ⚙ 填 Claude API 金鑰改用真正的 LLM |
 | **用我的 Claude 帳號生成** | 免 API 費用：複製網站產生的提示詞（含零件目錄與 JSON 格式）貼到 claude.ai，再把回覆的 JSON 貼回網站，自動驗證並拼裝 |
+| **設計師 → 工程師 → 檢查員** | 貼到 claude.ai 的提示詞會要求 Claude 在一則回覆中先提出 3 個概念並評分、再依零件尺寸計算座標、最後逐項檢查（零件存在、牙規一致、螺帽夾緊、無懸空 / 穿插、對稱），才輸出 JSON；可選風格（工業風、極簡、日式木作、北歐、包浩斯、童趣），或勾選「我會附上參考圖片」讓 Claude 先分析你貼上的 Pinterest / IG 圖 |
+| **請 Claude 修改這個設計** | 畫布上有作品時，AI 面板多一顆按鈕：複製 / 下載目前 3D 畫面的 PNG 截圖、輸入想怎麼改，複製含目前設計 JSON 的修改提示詞，讓 Claude 對照截圖與設計指南評論並輸出完整新版，貼回即套用（瀏覽器不能複製圖片時自動改為下載） |
 | **採購清單 BOM** | 即時合併相同規格，顯示標準號與數量，可複製文字或匯出 CSV 帶去五金行 |
 
 ## 專案結構
@@ -34,15 +36,19 @@ src/
 │  ├─ providers.js              # 外部零件資料庫 Provider 介面（TraceParts 等，偽代碼）
 │  └─ mock/square_frame.json    # 「AI 模擬生成」讀取的 Mock JSON
 ├─ ai/
-│  ├─ copilot.js                # parseIntent → matchParts → generate → validate；Claude 結構化輸出
+│  ├─ copilot.js                # parseIntent → matchParts → generate → validate；Claude 結構化輸出；claude.ai 提示詞 / 修改提示詞 / 回覆解析
+│  ├─ designGuide.js            # 設計指南與風格詞彙（純文字，designGuideMarkdown() 可給 agent 重用）
 │  └─ builders.js               # Mock 設計產生器（時鐘外殼 / CD 架 / 方形框架 / 水管層架 / U 型折板時鐘）
 ├─ three/
 │  ├─ geometry.js               # 標準參數 → Primitive 幾何
 │  ├─ snapping.js               # 網格 + 孔洞磁吸
+│  ├─ capture.js                # 畫布截圖（複製 / 下載 PNG）
 │  ├─ PartMesh.jsx / Workspace.jsx
 ├─ store/useStore.js            # zustand：場景（mm / 度）、選取、歷史紀錄
 └─ components/                  # TopBar、Sidebar、CopilotPanel、BomPanel、Inspector
 ```
+
+測試：`npm test`（Node 內建 test runner，`tests/`）。
 
 格式細節見 [`docs/PACKAGE_SPEC.md`](docs/PACKAGE_SPEC.md)。
 
