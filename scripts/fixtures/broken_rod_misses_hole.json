@@ -1,0 +1,50 @@
+{
+  "schema": "buildm8.assembly/v1",
+  "packageId": "taiwan_hardware_store_v1",
+  "title": "錯誤：螺條沒有穿過洞洞鐵的孔",
+  "summary": "驗證工具測試用（刻意做錯的設計）。",
+  "steps": [
+    "測試用"
+  ],
+  "_expect": {
+    "exit": 1,
+    "codes": [
+      "interpenetration"
+    ]
+  },
+  "items": [
+    {
+      "partId": "perforated_bar",
+      "params": {
+        "length": 300
+      },
+      "position": [
+        0,
+        1,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "threaded_rod",
+      "params": {
+        "size": "M8",
+        "length": 100
+      },
+      "position": [
+        0,
+        50,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

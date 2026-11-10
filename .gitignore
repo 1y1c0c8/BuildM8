@@ -2,3 +2,11 @@ node_modules
 dist
 .DS_Store
 *.local
+
+# Claude Code：只提交 .claude/agents 與 .claude/commands
+.claude/worktrees/
+.claude/settings.local.json
+
+# /design 產生的中間檔與截圖（最終的 designs/<slug>.json / .md 建議提交）
+designs/.work/
+designs/renders/

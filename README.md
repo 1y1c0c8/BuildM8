@@ -22,6 +22,8 @@ npm run dev      # 開啟 http://localhost:5173
 | **AI Copilot** | 輸入「我想做一個有厚度的方形時鐘外殼」等需求 → 解析 → 比對零件 → 產生組合矩陣 → 驗證 → 自動拼裝；預設 Mock，可在 ⚙ 填 Claude API 金鑰改用真正的 LLM |
 | **用我的 Claude 帳號生成** | 免 API 費用：複製網站產生的提示詞（含零件目錄與 JSON 格式）貼到 claude.ai，再把回覆的 JSON 貼回網站，自動驗證並拼裝 |
 | **採購清單 BOM** | 即時合併相同規格，顯示標準號與數量，可複製文字或匯出 CSV 帶去五金行 |
+| **設計檔匯入 / 匯出** | 「匯入設計檔（.json）」或把 .json 拖到畫布；「匯出設計檔」把目前畫布存成 JSON |
+| **Claude Code `/design`** | 在專案裡用 Claude Code 子代理人（外觀設計 → 平行實作 → 審查）產生經過幾何驗證的設計檔，見 [`docs/CLAUDE_CODE_WORKFLOW.md`](docs/CLAUDE_CODE_WORKFLOW.md) |
 
 ## 專案結構
 
@@ -45,6 +47,16 @@ src/
 ```
 
 格式細節見 [`docs/PACKAGE_SPEC.md`](docs/PACKAGE_SPEC.md)。
+
+## Claude Code 設計流程
+
+```bash
+npm run validate-design -- designs/foo.json   # 檢查設計檔：規格、懸空、穿透、牙規、BOM 與估價
+npm run test:validator                        # 驗證工具自我測試（參考設計 + scripts/fixtures）
+npm run render-design -- designs/foo.json     # 選用：無頭瀏覽器截圖（需 Playwright）
+```
+
+在 Claude Code 輸入 `/design 我想做一個 U 型折板時鐘` 即可啟動完整流程，詳見 [`docs/CLAUDE_CODE_WORKFLOW.md`](docs/CLAUDE_CODE_WORKFLOW.md)。
 
 ## 注意
 
