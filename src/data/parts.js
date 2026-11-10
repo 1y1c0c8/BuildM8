@@ -63,6 +63,100 @@ export function resolveGeometry(def, params = {}) {
   return g
 }
 
+// ---------------------------------------------------------------------------
+// 可動關節（joints）：鉸鏈開合、腳輪轉向 / 滾動
+// ---------------------------------------------------------------------------
+
+/**
+ * 解析關節定義：origin / axis / radius 可用數字、'$param'、'@規格表欄位'，
+ * 或 '#geometryKey*k'（取解析後 geometry 的值乘上係數，例 '#wheel_d*0.5'）。
+ * @returns {{ id:string, label:string, type:'revolute', axis:number[], origin:number[], range:[number,number],
+ *             default:number, zero:number, unit:string, moving:string, parent?:string, wrap?:boolean,
+ *             follow?:'heading'|'roll', radius?:number }[]}
+ */
+export function resolveJoints(def, params = {}) {
+  if (!def.joints?.length) return []
+  const p = { ...defaultParams(def), ...params }
+  const row = sizeRow(def, p) ?? {}
+  const g = resolveGeometry(def, p)
+  const ref = (v) => {
+    if (typeof v !== 'string') return v
+    if (v.startsWith('$')) return Number(p[v.slice(1)])
+    if (v.startsWith('@')) return Number(row[v.slice(1)])
+    const m = v.match(/^#(\w+)(?:\*(-?[\d.]+))?$/)
+    if (m) return Number(g[m[1]]) * (m[2] === undefined ? 1 : Number(m[2]))
+    return Number(v)
+  }
+  return def.joints.map((j) => {
+    const axis = j.axis.map(ref)
+    const len = Math.hypot(...axis) || 1
+    return {
+      type: 'revolute',
+      unit: '°',
+      ...j,
+      axis: axis.map((v) => v / len),
+      origin: (j.origin ?? [0, 0, 0]).map(ref),
+      zero: j.zero ?? 0,
+      default: j.default ?? j.zero ?? j.range[0],
+      ...(j.radius !== undefined ? { radius: ref(j.radius) } : {}),
+    }
+  })
+}
+
+/** 新零件的關節預設值 { angle: 180 }；沒有關節的零件回傳 undefined */
+export const defaultJoints = (def) =>
+  def.joints?.length ? Object.fromEntries(def.joints.map((j) => [j.id, j.default ?? j.zero ?? j.range[0]])) : undefined
+
+/** 把 AI / 使用者給的關節值修正為合法值：超出範圍 → 夾住（wrap 關節 → 取模），缺值 → 預設值 */
+export function normalizeJoints(def, raw) {
+  if (!def.joints?.length) return undefined
+  const out = {}
+  for (const j of def.joints) {
+    const [lo, hi] = j.range
+    const r = raw?.[j.id]
+    let v = r === null || r === undefined || r === '' ? NaN : Number(r)
+    if (!Number.isFinite(v)) v = j.default ?? j.zero ?? lo
+    if (j.wrap) {
+      const span = hi - lo
+      v = lo + ((((v - lo) % span) + span) % span)
+    } else v = Math.min(hi, Math.max(lo, v))
+    v = Math.round(v * 10) / 10
+    if (j.wrap && v >= hi) v = lo
+    out[j.id] = v
+  }
+  return out
+}
+
+/** 以 Rodrigues 公式繞 axis（單位向量）旋轉 v */
+function rotateVec(v, k, rad) {
+  const c = Math.cos(rad)
+  const s = Math.sin(rad)
+  const dot = k[0] * v[0] + k[1] * v[1] + k[2] * v[2]
+  const cross = [k[1] * v[2] - k[2] * v[1], k[2] * v[0] - k[0] * v[2], k[0] * v[1] - k[1] * v[0]]
+  return [0, 1, 2].map((i) => v[i] * c + cross[i] * s + k[i] * dot * (1 - c))
+}
+
+/**
+ * 把「屬於某個剛體群組」的點 / 方向套上目前關節值（由內而外：自己的關節 → parent 關節 …）。
+ * 每個關節繞 axis 旋轉 (value - zero) 度，origin 為零件局部座標（mm）。
+ */
+export function applyJoints(joints, values, group, p, dir) {
+  let j = joints.find((x) => x.moving === group)
+  let pt = p
+  let d = dir
+  for (let guard = 0; j && guard < 8; guard++) {
+    const rad = (((values?.[j.id] ?? j.default) - j.zero) * Math.PI) / 180
+    if (rad) {
+      const rel = [0, 1, 2].map((i) => pt[i] - j.origin[i])
+      pt = rotateVec(rel, j.axis, rad).map((v, i) => v + j.origin[i])
+      if (d) d = rotateVec(d, j.axis, rad)
+    }
+    const parent = j.parent
+    j = parent ? joints.find((x) => x.id === parent) : null
+  }
+  return { p: pt, dir: d }
+}
+
 /** 舊版 / 別名 partId（例 'hex_nut_m8'）→ 實際零件與預設規格 */
 export function resolvePartRef(pkg, partId, params = {}) {
   const direct = pkg.parts.find((p) => p.id === partId)
@@ -152,9 +246,23 @@ export const DIR45 = [Math.SQRT1_2, Math.SQRT1_2, 0]
  *  - pin  : 本零件是「軸」（螺條、螺栓）→ 會吸進孔；螺帽也可套在它上面（d = 公稱徑、thread = 牙規）
  *  - bore : 本零件是「套件」（螺帽、華司）→ 會套到孔或軸上（d = 內徑、thread = 牙規）
  *  - port : 管口（水管 / 管件），管口對管口接合（thread = 管徑規格，如 15A）
- * @returns {{kind:'hole'|'pin'|'bore'|'port', p:number[], dir:number[], half?:number, seat?:number, d?:number, thread?:string}[]}
+ *  joints（選填）: 目前關節值，例 { angle: 90 }；活動群組上的錨點會跟著旋轉
+ * @returns {{kind:'hole'|'pin'|'bore'|'port', p:number[], dir:number[], half?:number, seat?:number, d?:number, thread?:string, group?:string}[]}
  */
-export function getAnchors(def, params) {
+export function getAnchors(def, params, joints) {
+  const list = localAnchors(def, params)
+  if (!def.joints?.length) return list
+  // 錨點跟著關節走：活動葉片 / 叉架上的孔依目前角度轉到正確位置
+  const js = resolveJoints(def, params)
+  return list.map((a) => {
+    if (!a.group || a.group === 'base') return a
+    const { p, dir } = applyJoints(js, joints, a.group, a.p, a.dir)
+    return { ...a, p, dir }
+  })
+}
+
+/** 零件在幾何原始姿態下的錨點（group = 所屬剛體群組，可動零件才有） */
+function localAnchors(def, params) {
   const g = resolveGeometry(def, params)
   const th = g.thread
   const hole = (p, dir, half, d = g.hole_d) => ({ kind: 'hole', p, dir, half, d })
@@ -182,7 +290,10 @@ export function getAnchors(def, params) {
     case 'panel':
       return panelHoles(g).map(([x, z]) => hole([x, 0, z], [0, 1, 0], g.thickness / 2))
     case 'hinge':
-      return hingeHoles(g).map(([x, z]) => hole([x, -g.kd / 2 + g.thickness / 2, z], [0, 1, 0], g.thickness / 2))
+      return hingeHoles(g).map(([x, z]) => ({
+        ...hole([x, -g.kd / 2 + g.thickness / 2, z], [0, 1, 0], g.thickness / 2),
+        group: x > 0 ? 'leafB' : 'base',
+      }))
     case 'caster':
       return casterHoles(g).map(([x, z]) => hole([x, g.height - g.plate_t / 2, z], [0, 1, 0], g.plate_t / 2))
     case 'threaded_rod':

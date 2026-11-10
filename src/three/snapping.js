@@ -22,10 +22,11 @@ const THR_PORT = 2.8 // cm：管口吸附距離
 const _v = new THREE.Vector3()
 const _q = new THREE.Quaternion()
 
-export function worldAnchors(obj, def, params) {
+/** joints：目前關節值（例 { angle: 90 }），活動葉片上的孔會跟著轉 */
+export function worldAnchors(obj, def, params, joints) {
   obj.updateMatrixWorld(true)
   const q = obj.getWorldQuaternion(new THREE.Quaternion())
-  return getAnchors(def, params).map((a) => ({
+  return getAnchors(def, params, joints).map((a) => ({
     kind: a.kind,
     local: new THREE.Vector3(...a.p).multiplyScalar(S),
     p: new THREE.Vector3(...a.p).multiplyScalar(S).applyMatrix4(obj.matrixWorld),
@@ -54,7 +55,7 @@ const signOr1 = (x) => (x < 0 ? -1 : 1)
 /**
  * 在 TransformControls 拖曳中呼叫：直接修改 obj 的 position / quaternion。
  * @param {THREE.Object3D} obj
- * @param {{def, params}} self
+ * @param {{def, params, joints?}} self
  * @param {ReturnType<typeof worldAnchors>} targets  其他零件的世界錨點（拖曳開始時快取）
  * @param {{ grid:number, magnet:boolean }} opts
  * @returns {null | { position:number[], dir:number[], kind:string }}
@@ -69,7 +70,7 @@ export function applySnap(obj, self, targets, { grid, magnet }) {
   }
   if (!magnet || !targets.length) return null
 
-  const own = worldAnchors(obj, self.def, self.params)
+  const own = worldAnchors(obj, self.def, self.params, self.joints)
   let best = null
   const consider = (score, apply, hint) => {
     if (!best || score < best.score) best = { score, apply, hint }

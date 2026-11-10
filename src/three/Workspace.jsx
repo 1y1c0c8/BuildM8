@@ -16,6 +16,7 @@ import { PartsLayer } from './PartMesh'
 import { applySnap, worldAnchors } from './snapping'
 import { registry } from './registry'
 import { S } from './geometry'
+import { normalizeJoints, resolveJoints } from '../data/parts'
 import { useBreakpoint } from '../hooks/useBreakpoint'
 
 const RAD = 180 / Math.PI
@@ -85,6 +86,7 @@ function Scene() {
 
       <PartsLayer />
       <SelectedTransform />
+      <JointDragger />
       <SnapHint />
       <DropBridge />
       <CameraRig />
@@ -129,6 +131,7 @@ function SelectedTransform() {
   const [obj, setObj] = useState(null)
   const targetsRef = useRef([])
   const hintKey = useRef('')
+  const autoRef = useRef(null) // 腳輪拖曳中的自動轉向 / 滾動
 
   useEffect(() => {
     if (!selectedId) return setObj(null)
@@ -157,13 +160,16 @@ function SelectedTransform() {
       .flatMap((i) => {
         const o = registry.objects.get(i.uid)
         const d = pkg.parts.find((p) => p.id === i.partId)
-        return o && d ? worldAnchors(o, d, i.params) : []
+        return o && d ? worldAnchors(o, d, i.params, i.joints) : []
       })
+    const follow = mode === 'translate' ? resolveJoints(def, item.params).filter((j) => j.follow) : []
+    autoRef.current = follow.length ? { joints: follow, last: obj.position.clone(), values: { ...item.joints } } : null
   }
   const onChange = () => {
     if (!registry.dragging || mode !== 'translate') return
     const { gridStep, magnet, setSnapHint } = useStore.getState()
-    const hint = applySnap(obj, { def, params: item.params }, targetsRef.current, { grid: gridStep, magnet })
+    const hint = applySnap(obj, { def, params: item.params, joints: item.joints }, targetsRef.current, { grid: gridStep, magnet })
+    if (autoRef.current) followMotion(autoRef.current)
     const key = hint ? hint.position.map((v) => v.toFixed(2)).join(',') : ''
     if (key !== hintKey.current) {
       hintKey.current = key
@@ -177,10 +183,28 @@ function SelectedTransform() {
     setSnapHint(null)
     hintKey.current = ''
     const e = new THREE.Euler().setFromQuaternion(obj.quaternion, 'XYZ')
+    const auto = autoRef.current
+    autoRef.current = null
+    registry.liveJoints.delete(selectedId)
     updateItem(selectedId, {
       position: obj.position.toArray().map((v) => v / S),
       rotation: [e.x * RAD, e.y * RAD, e.z * RAD],
+      ...(auto ? { joints: normalizeJoints(def, auto.values) } : {}),
     })
+  }
+  /** 腳輪：輪子朝移動方向轉（swivel）並依移動距離 / 半徑滾動（roll） */
+  const followMotion = (auto) => {
+    const delta = obj.position.clone().sub(auto.last)
+    const local = delta.applyQuaternion(obj.quaternion.clone().invert())
+    const dist = Math.hypot(local.x, local.z) // cm
+    if (dist < 0.05) return
+    auto.last.copy(obj.position)
+    for (const j of auto.joints) {
+      if (j.follow === 'heading') auto.values[j.id] = Math.atan2(local.x, local.z) * RAD
+      else if (j.follow === 'roll' && j.radius) auto.values[j.id] = (auto.values[j.id] ?? 0) + (dist / S / j.radius) * RAD
+    }
+    auto.values = normalizeJoints(def, auto.values)
+    registry.liveJoints.set(selectedId, auto.values)
   }
 
   return (
@@ -194,6 +218,121 @@ function SelectedTransform() {
       onObjectChange={onChange}
       onMouseUp={onEnd}
     />
+  )
+}
+
+/**
+ * 在畫布上直接拖曳可動群組（鉸鏈葉片、腳輪叉架 / 輪子）：
+ * 指標射線與「垂直關節軸、通過軸心」的平面求交點，累加相鄰兩點對軸心的夾角。
+ * 拖曳中停用 OrbitControls，零件本身不移動；若 TransformControls 搶到這次拖曳則放棄。
+ */
+function JointDragger() {
+  const { camera, gl } = useThree()
+  const [gizmo, setGizmo] = useState(null)
+
+  useEffect(() => {
+    const ray = new THREE.Raycaster()
+    const ndc = new THREE.Vector2()
+    registry.startJointDrag = (uid, joint, e) => {
+      const pivot = registry.joints.get(`${uid}:${joint.id}`)
+      if (!pivot) return
+      pivot.updateMatrixWorld(true)
+      const origin = pivot.getWorldPosition(new THREE.Vector3())
+      const axis = new THREE.Vector3(...joint.axis).applyQuaternion(pivot.getWorldQuaternion(new THREE.Quaternion())).normalize()
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(axis, origin)
+      const hit = (cx, cy) => {
+        const r = gl.domElement.getBoundingClientRect()
+        ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1)
+        ray.setFromCamera(ndc, camera)
+        return ray.ray.intersectPlane(plane, new THREE.Vector3())
+      }
+      const ne = e.nativeEvent ?? e
+      let prev = hit(ne.clientX, ne.clientY) ?? plane.projectPoint(e.point, new THREE.Vector3())
+      const startVec = prev.clone().sub(origin)
+      // 環的半徑：可動群組離軸最遠的距離
+      const box = new THREE.Box3().setFromObject(pivot)
+      let radius = 1
+      for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+        const v = new THREE.Vector3(x, y, z).sub(origin)
+        radius = Math.max(radius, v.addScaledVector(axis, -v.dot(axis)).length())
+      }
+      radius = Math.min(radius * 1.08, 40)
+      const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), axis)
+      const qi = q.clone().invert()
+      const loc = startVec.clone().applyQuaternion(qi)
+      const start = Math.atan2(loc.y, loc.x)
+      const [lo, hi] = joint.range
+      const st = useStore.getState()
+      let raw = st.items.find((i) => i.uid === uid)?.joints?.[joint.id] ?? joint.default
+      let swept = 0
+      let recorded = false
+
+      registry.dragging = true
+      registry.jointDrag = { uid, id: joint.id }
+      if (registry.controls) registry.controls.enabled = false
+      document.body.style.cursor = 'grabbing'
+      setGizmo({ origin: origin.toArray(), q: q.toArray(), radius, start, swept: 0 })
+
+      const finish = () => {
+        window.removeEventListener('pointermove', move)
+        window.removeEventListener('pointerup', finish)
+        window.removeEventListener('pointercancel', finish)
+        registry.dragging = false
+        registry.jointDrag = null
+        registry.lastDragEnd = performance.now()
+        if (registry.controls) registry.controls.enabled = true
+        document.body.style.cursor = ''
+        setGizmo(null)
+      }
+      const move = (ev) => {
+        if (registry.transform?.dragging) return finish()
+        const p = hit(ev.clientX, ev.clientY)
+        if (!p) return
+        const v0 = prev.clone().sub(origin)
+        const v1 = p.clone().sub(origin)
+        if (v1.lengthSq() < 1e-6 || v0.lengthSq() < 1e-6) return
+        const d = Math.atan2(axis.dot(v0.clone().cross(v1)), v0.dot(v1))
+        prev = p
+        swept += d
+        raw += d * RAD
+        if (!joint.wrap) raw = Math.min(hi, Math.max(lo, raw))
+        const s = useStore.getState()
+        const it = s.items.find((i) => i.uid === uid)
+        if (!it) return finish()
+        const def = getPackage(s.packageId).parts.find((x) => x.id === it.partId)
+        const joints = normalizeJoints(def, { ...it.joints, [joint.id]: raw })
+        if (joints[joint.id] !== it.joints?.[joint.id]) {
+          if (!recorded) s._record()
+          recorded = true
+          s.updateItem(uid, { joints }, { record: false })
+        }
+        setGizmo((g) => g && { ...g, swept })
+      }
+      window.addEventListener('pointermove', move)
+      window.addEventListener('pointerup', finish)
+      window.addEventListener('pointercancel', finish)
+    }
+    return () => (registry.startJointDrag = null)
+  }, [camera, gl])
+
+  if (!gizmo) return null
+  const len = Math.max(0.001, Math.abs(gizmo.swept))
+  const thetaStart = gizmo.swept < 0 ? gizmo.start + gizmo.swept : gizmo.start
+  return (
+    <group position={gizmo.origin} quaternion={gizmo.q}>
+      <mesh renderOrder={11}>
+        <torusGeometry args={[gizmo.radius, Math.max(0.05, gizmo.radius * 0.02), 10, 72]} />
+        <meshBasicMaterial color="#f59e0b" depthTest={false} transparent opacity={0.9} />
+      </mesh>
+      <mesh renderOrder={11}>
+        <ringGeometry args={[gizmo.radius * 0.25, gizmo.radius, 48, 1, thetaStart, Math.min(len, Math.PI * 2)]} />
+        <meshBasicMaterial color="#f59e0b" depthTest={false} transparent opacity={0.22} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh renderOrder={11}>
+        <sphereGeometry args={[Math.max(0.12, gizmo.radius * 0.05), 12, 8]} />
+        <meshBasicMaterial color="#f59e0b" depthTest={false} />
+      </mesh>
+    </group>
   )
 }
 

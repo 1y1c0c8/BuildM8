@@ -19,7 +19,10 @@ import {
 export const S = 0.1 // mm → cm
 const cache = new Map()
 
-/** @returns {{ geometry: THREE.BufferGeometry, mat: string, position?: number[], rotation?: number[] }[]} */
+/**
+ * group：可動零件的剛體群組（對應 PartDef.joints[].moving，例 'leafB' / 'fork' / 'wheel'）；省略 = 'base'（固定）。
+ * @returns {{ geometry: THREE.BufferGeometry, mat: string, group?: string, position?: number[], rotation?: number[] }[]}
+ */
 export function buildPartMeshes(def, params) {
   const key = `${def.id}|${JSON.stringify(params)}`
   if (cache.has(key)) return cache.get(key)
@@ -552,7 +555,7 @@ const BUILDERS = {
         .forEach(([x, z]) => sh.holes.push(circle((g.hole_d * S) / 2, x * S - cx, -z * S)))
       const geo = extrudeY(sh, t, { center: false, segments: 16 })
       geo.translate(cx, -kr, 0)
-      return { geometry: geo, mat: 'stainless' }
+      return { geometry: geo, mat: 'stainless', ...(sx > 0 ? { group: 'leafB' } : {}) }
     }
     const nK = 5
     const gap = 0.03
@@ -561,7 +564,7 @@ const BUILDERS = {
       const c = cyl(kr, kl, 24)
       c.rotateX(Math.PI / 2)
       c.translate(0, 0, -L / 2 + kl / 2 + i * (kl + gap))
-      return { geometry: c, mat: 'stainless' }
+      return { geometry: c, mat: 'stainless', ...(i % 2 ? { group: 'leafB' } : {}) } // 指節交錯屬於兩片葉片
     })
     const pins = [-1, 1].map((s) => {
       const p = cyl(kr * 0.55, 0.08, 16)
@@ -591,13 +594,22 @@ const BUILDERS = {
     const axle = cyl(D * 0.06, W + 2 * tf + 0.5, 16)
     axle.rotateZ(Math.PI / 2)
     axle.translate(0, D / 2, -lead)
+    // 輪轂兩側的肋條：讓輪子滾動時看得出轉動
+    const ribs = [-1, 1].flatMap((s) =>
+      [0, 1, 2].map((k) => {
+        const r = new THREE.BoxGeometry(0.04, D * 0.56, Math.max(0.12, D * 0.07))
+        r.rotateX((k * Math.PI) / 3)
+        r.translate(s * (W / 2 + 0.07), D / 2, -lead)
+        return { geometry: r, mat: 'steel', group: 'wheel' }
+      }),
+    )
     const fy0 = D / 2 - D * 0.12
     const fz0 = -lead - D * 0.18
     const fz1 = D * 0.18
     const forks = [-1, 1].map((s) => {
       const b = new THREE.BoxGeometry(tf, yb + tf - fy0, fz1 - fz0)
       b.translate(s * (W / 2 + 0.1 + tf / 2), (fy0 + yb + tf) / 2, (fz0 + fz1) / 2)
-      return { geometry: b, mat: 'zinc' }
+      return { geometry: b, mat: 'zinc', group: 'fork' }
     })
     const bridge = new THREE.BoxGeometry(W + 0.2 + 2 * tf, tf, fz1 - fz0)
     bridge.translate(0, yb + tf / 2, (fz0 + fz1) / 2)
@@ -608,11 +620,12 @@ const BUILDERS = {
     const plate = extrudeY(ps, pt, { center: false, segments: 16 })
     plate.translate(0, H - pt, 0)
     return [
-      { geometry: wheel, mat: 'rubber' },
-      { geometry: hub, mat: 'zinc' },
-      { geometry: axle, mat: 'steel' },
+      { geometry: wheel, mat: 'rubber', group: 'wheel' },
+      { geometry: hub, mat: 'zinc', group: 'wheel' },
+      ...ribs,
+      { geometry: axle, mat: 'steel', group: 'fork' },
       ...forks,
-      { geometry: bridge, mat: 'zinc' },
+      { geometry: bridge, mat: 'zinc', group: 'fork' },
       { geometry: swivel, mat: 'zinc' },
       { geometry: plate, mat: 'zinc' },
     ]

@@ -572,8 +572,12 @@ export const taiwan_hardware_store_v1 = {
       },
       bom: { name: '{size} 白鐵平板鉸鏈（{length}mm）', unit: '片' },
       priceTWD: 30,
+      // 可動關節：-X 葉片固定、+X 葉片（leafB）繞軸心 Z 軸開合；180° = 攤平（幾何原始姿態）
+      joints: [
+        { id: 'angle', label: '開合角度', type: 'revolute', axis: [0, 0, -1], origin: [0, 0, 0], zero: 180, range: [0, 180], default: 180, unit: '°', moving: 'leafB' },
+      ],
       aliases: ['鉸鏈', '蝴蝶鉸鏈', '合頁', '平板鉸鏈', '門鉸', 'hinge'],
-      note: '以攤平（180°）狀態顯示；尺寸為市售常見品近似值。',
+      note: '預設攤平（180°）顯示，可調整開合角度（0° 闔起、90° 直角）；尺寸為市售常見品近似值。',
     },
     {
       id: 'caster',
@@ -591,6 +595,11 @@ export const taiwan_hardware_store_v1 = {
       },
       bom: { name: '{size} 平板活動輪（PU 輪，總高 {H}mm）', unit: '個' },
       priceTWD: 50,
+      // 可動關節：叉架 + 輪子繞頂板中心的垂直軸轉向；輪子繞輪軸滾動（巢狀在轉向之內）
+      joints: [
+        { id: 'swivel', label: '轉向', type: 'revolute', axis: [0, 1, 0], origin: [0, 0, 0], range: [0, 360], default: 0, unit: '°', moving: 'fork', wrap: true, follow: 'heading' },
+        { id: 'roll', label: '輪子轉動', type: 'revolute', axis: [1, 0, 0], origin: [0, '#wheel_d*0.5', '#wheel_d*-0.22'], range: [0, 360], default: 0, unit: '°', moving: 'wheel', parent: 'swivel', wrap: true, follow: 'roll', radius: '#wheel_d*0.5' },
+      ],
       aliases: ['腳輪', '輪子', '活動輪', '萬向輪', '飛機輪', '移動輪', 'caster'],
       note: '原點在輪子著地點正上方的地面；頂板 4 孔可用木螺絲固定。尺寸為常見品近似值。',
     },

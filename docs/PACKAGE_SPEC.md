@@ -91,6 +91,41 @@ M8 / 15A 的尺寸與 v1.0 完全相同，舊設計拼裝結果不變。
 * 螺條 / 螺栓 / 螺帽不會吸進比自己細的孔（`d ≤ 孔徑 + 0.6mm`）。
 * 管口只接**同管徑**；異徑接頭（`reducer`）兩端各自標示大 / 小管徑。
 
+### 2.4 可動關節（joints）
+
+可動零件（鉸鏈、腳輪）在零件定義中宣告 `joints`。幾何生成器替每個網格標上剛體群組 `group`
+（省略 = `base` 固定），錨點也帶 `group`；關節把 `moving` 群組繞 `axis` 旋轉 `(value − zero)` 度，旋轉中心為 `origin`。
+
+```jsonc
+"joints": [
+  { "id": "angle", "label": "開合角度", "type": "revolute",
+    "axis": [0, 0, -1],          // 局部座標；正方向 = 數值增加的方向（右手定則）
+    "origin": [0, 0, 0],         // mm，局部座標
+    "zero": 180,                 // 幾何原始姿態對應的值（預設 0）
+    "range": [0, 180], "default": 180, "unit": "°",
+    "moving": "leafB" }          // 被帶動的群組
+]
+```
+
+| 欄位 | 說明 |
+|---|---|
+| `origin` / `axis` / `radius` | 數字、`"$param"`、`"@規格表欄位"`，或 `"#geometryKey*k"`（解析後 geometry 的值 × k，例 `"#wheel_d*0.5"`） |
+| `parent` | 巢狀關節：parent 也會帶動本關節（座標仍以零件局部座標表示） |
+| `wrap` | 可連續旋轉：超出 `range` 取模（例 359 → 1 → 0~360）；否則夾住 |
+| `follow` | 拖曳整個零件時自動跟隨：`heading` = 轉向移動方向，`roll` = 依移動距離 / `radius` 滾動 |
+
+內建可動零件：
+
+| 零件 | 關節 | 群組 | 說明 |
+|---|---|---|---|
+| `hinge` | `angle` 0~180°，預設 180 | `leafB`（+X 葉片與交錯指節） | -X 葉片固定；+X 葉片繞軸心 Z 軸往 +Y 翻起（90° 直角、0° 闔起） |
+| `caster` | `swivel` 0~360°（wrap），預設 0 | `fork`（叉架、輪軸） | 繞頂板中心垂直軸（Y）轉向；0° 時輪子在 -Z 側 |
+| | `roll` 0~360°（wrap），parent `swivel` | `wheel`（輪子、輪轂） | 繞輪軸滾動；正值 = 往（轉向後的）+Z 滾 |
+
+* 活動群組上的錨點（例：鉸鏈 +X 葉片的孔）會依目前關節值轉到正確位置，磁吸照樣對得上孔。
+* 網頁上：選取零件後，屬性列有每個關節的滑桿（含數值與重設鈕）；也可在畫布上直接拖曳活動葉片 / 叉架 / 輪子。
+* 關節值存在場景零件的 `joints`（例 `{ "angle": 90 }`），可復原 / 重做、複製；不影響採購清單。
+
 ### 支援的 geometry.type（最少參數）
 
 | type | 參數 (mm) | 局部座標 |
@@ -119,8 +154,8 @@ M8 / 15A 的尺寸與 v1.0 完全相同，舊設計拼裝結果不變。
 | `reducer` | thread_big, thread_small, od_big, od_small, length, engage_big, engage_small | 中心原點；大口 +Y、小口 −Y |
 | `flange` | thread, d, t, neck_d, neck_h, pcd, hole_d, engage | 底面中心；接口 +Y；4 孔 |
 | `u_bolt` | d, inner（內寬 ≈ 管外徑）, leg | U 型管束；管心原點；圓弧 +Y（XY 平面）、兩腳 −Y |
-| `hinge` | length, leaf, thickness, kd（軸徑）, hole_d, n | 鉸鏈攤平 180°；軸心原點；軸沿 Z、葉片 ±X；每片 n 孔 |
-| `caster` | wheel_d, wheel_w, plate, plate_t, height, hole_d | 腳輪；地面原點（旋轉軸正下方）；頂板頂面 y = height；4 孔 |
+| `hinge` | length, leaf, thickness, kd（軸徑）, hole_d, n | 鉸鏈（angle = 180° 時攤平）；軸心原點；軸沿 Z、葉片 ±X；每片 n 孔。可動：`angle`（見 §2.4） |
+| `caster` | wheel_d, wheel_w, plate, plate_t, height, hole_d | 腳輪；地面原點（旋轉軸正下方）；頂板頂面 y = height；4 孔。可動：`swivel`、`roll`（見 §2.4） |
 | `panel` | width, depth, thickness, hole_d, pattern | 中心原點；寬 X、深 Z、厚 Y |
 
 ### 錨點（自動由幾何推導，不需手寫）
@@ -151,8 +186,10 @@ M8 / 15A 的尺寸與 v1.0 完全相同，舊設計拼裝結果不變。
 
 * `position`：mm，Y 軸朝上，地面 y = 0。
 * `rotation`：度，Euler XYZ（three.js 預設順序）。
+* `joints`（選填）：可動零件的關節值（度），例 `{ "angle": 90 }`；沒有關節的零件省略或填 `null`（見 §2.4）。
 * 前端收到後會 `validateAssembly()`：舊版 `partId` 經 `idAliases` 轉換；不存在的 `partId` 會被略過；不可裁切的參數會貼齊最近的現貨規格；不認得的 `size` 回到預設規格。
-* 給 LLM 的 JSON Schema（`ASSEMBLY_JSON_SCHEMA`）中 `params` 固定包含 `size, length, width, depth, thickness, pattern`，零件沒有的參數填 `null`。
+* 給 LLM 的 JSON Schema（`ASSEMBLY_JSON_SCHEMA`）中 `params` 固定包含 `size, length, width, depth, thickness, pattern`，零件沒有的參數填 `null`；
+  `joints` 為 `null` 或 `{ angle, swivel, roll }`（用不到的填 `null`），`validateAssembly()` 會把超出範圍的值夾住、缺值補預設。
 * 完整範例：[`src/data/mock/square_frame.json`](../src/data/mock/square_frame.json)。
 
 ## 4. 外部資料庫串接（規劃）
