@@ -50,6 +50,8 @@ function baseMaterials() {
     steel: new THREE.MeshStandardMaterial({ color: '#8a929c', metalness: 0.8, roughness: 0.4 }),
     plywood: new THREE.MeshStandardMaterial({ map: woodTexture(), metalness: 0, roughness: 0.78 }),
     hole: new THREE.MeshStandardMaterial({ color: '#15181c', metalness: 0.2, roughness: 0.9 }),
+    nylon: new THREE.MeshStandardMaterial({ color: '#e9e4d6', metalness: 0, roughness: 0.55 }),
+    rubber: new THREE.MeshStandardMaterial({ color: '#33373d', metalness: 0, roughness: 0.85 }),
     thread: new THREE.MeshStandardMaterial({
       color: '#bfc5cc',
       metalness: 0.9,

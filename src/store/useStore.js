@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { getPackage } from '../data/packages'
-import { defaultParams, normalizeParams, restY } from '../data/parts'
+import { defaultParams, normalizeParams, resolvePartRef, restY } from '../data/parts'
 
 let seq = 0
 const uid = () => `p${Date.now().toString(36)}${(seq++).toString(36)}`
@@ -43,14 +43,14 @@ export const useStore = create((set, get) => ({
 
   // ---------- 零件操作 ----------
   addPart(partId, { params, position, rotation } = {}) {
-    const pkg = getPackage(get().packageId)
-    const def = pkg.parts.find((p) => p.id === partId)
-    if (!def) return null
-    const p = normalizeParams(def, params ?? defaultParams(def))
+    const ref = resolvePartRef(getPackage(get().packageId), partId, params ?? {})
+    if (!ref) return null
+    const { def } = ref
+    const p = normalizeParams(def, { ...defaultParams(def), ...ref.params })
     get()._record()
     const item = {
       uid: uid(),
-      partId,
+      partId: def.id,
       params: p,
       position: position ?? findFreeSpot(get().items, restY(def, p)),
       rotation: rotation ?? [0, 0, 0],
@@ -123,14 +123,17 @@ export const useStore = create((set, get) => ({
     const pkg = getPackage(get().packageId)
     get()._record()
     const now = performance.now()
-    const valid = (assembly.items ?? []).filter((i) => pkg.parts.some((p) => p.id === i.partId))
+    // 舊版 partId（例 hex_nut_m8）會經由 package.idAliases 轉成尺寸家族 + 規格
+    const valid = (assembly.items ?? [])
+      .map((i) => ({ i, ref: resolvePartRef(pkg, i.partId, i.params ?? (i.length ? { length: i.length } : {})) }))
+      .filter((x) => x.ref)
     const step = Math.max(12, Math.min(70, 2400 / Math.max(1, valid.length)))
-    const items = valid.map((i, idx) => {
-      const def = pkg.parts.find((p) => p.id === i.partId)
-      const params = normalizeParams(def, i.params ?? (i.length ? { length: i.length } : {}))
+    const items = valid.map(({ i, ref }, idx) => {
+      const def = ref.def
+      const params = normalizeParams(def, ref.params)
       return {
         uid: uid(),
-        partId: i.partId,
+        partId: def.id,
         params,
         position: (i.position ?? [0, restY(def, params), 0]).map(Number),
         rotation: (i.rotation ?? [0, 0, 0]).map(Number),

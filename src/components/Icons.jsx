@@ -115,6 +115,134 @@ export function PartGlyph({ type, className = '' }) {
         {[[11, 26], [26, 17.5], [37, 22], [22, 31]].map(([x, y], i) => <ellipse key={i} cx={x} cy={y} rx="1.4" ry=".8" />)}
       </g>
     ),
+    // ───── v1.1 新增 ─────
+    mending_plate: (
+      <g {...common}>
+        <path d="M6 30 L32 15 L42 20 L16 35 Z" />
+        <path d="M6 30 L6 32 L16 37 L42 22 L42 20" />
+        {[0, 1, 2, 3].map((i) => <ellipse key={i} cx={13 + i * 7.5} cy={30.5 - i * 4.3} rx="1.6" ry=".9" />)}
+      </g>
+    ),
+    t_plate: (
+      <g {...common}>
+        <path d="M5 22 L25 10 L33 14 L24 19.5 L38 28 L30 33 L16 24.5 L13 26.5 Z" />
+        <path d="M5 22 L5 24 L13 28.5 L16 26.5 M30 33 L30 35 L38 30 L38 28" />
+        {[[11, 22], [20, 16.5], [27, 27], [32, 30]].map(([x, y], i) => <ellipse key={i} cx={x} cy={y} rx="1.4" ry=".8" />)}
+      </g>
+    ),
+    shelf_bracket: (
+      <g {...common}>
+        <path d="M10 8 L10 40 L40 40" strokeWidth="3.2" />
+        <path d="M11.5 22 L26 38.5" strokeWidth="2.4" />
+        <circle cx="10" cy="14" r="1" />
+        <circle cx="10" cy="30" r="1" />
+        <circle cx="20" cy="40" r="1" />
+        <circle cx="34" cy="40" r="1" />
+      </g>
+    ),
+    wing_nut: (
+      <g {...common}>
+        <path d="M18 36 L18 26 C18 24, 30 24, 30 26 L30 36 C30 38.5, 18 38.5, 18 36 Z" />
+        <path d="M18 27 C12 20, 6 14, 6 10 C8 8, 12 9, 14 12 C16 16, 18 22, 19 25" />
+        <path d="M30 27 C36 20, 42 14, 42 10 C40 8, 36 9, 34 12 C32 16, 30 22, 29 25" />
+        <ellipse cx="24" cy="25.5" rx="3" ry="1.2" />
+      </g>
+    ),
+    nylon_nut: (
+      <g {...common}>
+        <path d="M10 24 L17 18 L31 18 L38 24 L31 30 L17 30 Z" />
+        <path d="M10 24 L10 31 L17 37 L31 37 L38 31 L38 24 M17 30 L17 37 M31 30 L31 37" />
+        <path d="M14 21 C14 12, 34 12, 34 21" />
+        <ellipse cx="24" cy="13.5" rx="7" ry="2.4" strokeWidth="2.4" />
+      </g>
+    ),
+    coupling_nut: (
+      <g {...common}>
+        <path d="M14 10 L19 7 L29 7 L34 10 L29 13 L19 13 Z" />
+        <path d="M14 10 L14 38 L19 41 L29 41 L34 38 L34 10 M19 13 L19 41 M29 13 L29 41" />
+        <ellipse cx="24" cy="10" rx="3" ry="1.5" />
+      </g>
+    ),
+    spring_washer: (
+      <g {...common}>
+        <path d="M27 17 C36 17, 40 20, 40 24 C40 29, 33 31, 24 31 C15 31, 8 29, 8 24 C8 19, 14 16, 22 16" />
+        <path d="M27 21 C31 21, 33 22.5, 33 24 C33 26, 29 27, 24 27 C19 27, 15 26, 15 24 C15 22, 18 20.5, 22 20" />
+        <path d="M22 16 L22 20 M27 17 L27 21" />
+      </g>
+    ),
+    eye_bolt: (
+      <g {...common}>
+        <circle cx="24" cy="13" r="8" strokeWidth="3" />
+        <path d="M18 23 L30 23 L31 26 L17 26 Z" />
+        <path d="M21.5 26 L21.5 42 M26.5 26 L26.5 42" />
+        {[0, 1, 2, 3].map((i) => <path key={i} d={`M21.5 ${30 + i * 3.5} L26.5 ${28.5 + i * 3.5}`} strokeWidth="1" />)}
+      </g>
+    ),
+    wood_screw: (
+      <g {...common}>
+        <path d="M14 8 L34 8 L26 15 L22 15 Z" />
+        <path d="M20 8 L28 8 M24 6 L24 10" strokeWidth="1.2" />
+        <path d="M22 15 L22 34 L24 42 L26 34 L26 15" />
+        {[0, 1, 2, 3, 4].map((i) => <path key={i} d={`M20.5 ${19 + i * 3.4} L27.5 ${17 + i * 3.4}`} strokeWidth="1" />)}
+      </g>
+    ),
+    carriage_bolt: (
+      <g {...common}>
+        <path d="M12 14 C12 6, 36 6, 36 14 Z" />
+        <path d="M20 14 L28 14 L28 19 L20 19 Z" />
+        <path d="M21.5 19 L21.5 42 M26.5 19 L26.5 42" />
+        {[0, 1, 2, 3, 4].map((i) => <path key={i} d={`M21.5 ${24 + i * 3.6} L26.5 ${22.5 + i * 3.6}`} strokeWidth="1" />)}
+      </g>
+    ),
+    u_bolt: (
+      <g {...common}>
+        <path d="M13 40 L13 22 A11 11 0 0 1 35 22 L35 40" strokeWidth="3" />
+        <circle cx="24" cy="22" r="6.5" strokeDasharray="2 2" />
+        {[0, 1, 2].map((i) => <path key={i} d={`M11 ${32 + i * 3} L15 ${31 + i * 3} M33 ${32 + i * 3} L37 ${31 + i * 3}`} strokeWidth="1" />)}
+      </g>
+    ),
+    cross: (
+      <g {...common}>
+        <path d="M6 19 L19 19 L19 6 L29 6 L29 19 L42 19 L42 29 L29 29 L29 42 L19 42 L19 29 L6 29 Z" />
+        <path d="M6 18 L6 30 M42 18 L42 30 M18 6 L30 6 M18 42 L30 42" strokeWidth="2.6" />
+      </g>
+    ),
+    elbow45: (
+      <g {...common}>
+        <path d="M18 42 L18 24 L31 11 L38 18 L28 28 L28 42 Z" />
+        <path d="M17 42 L29 42 M30.3 10.3 L38.7 18.7" strokeWidth="2.6" />
+      </g>
+    ),
+    pipe_cap: (
+      <g {...common}>
+        <path d="M13 36 L13 16 C13 10, 35 10, 35 16 L35 36" />
+        <ellipse cx="24" cy="36" rx="11" ry="4" />
+        <path d="M12 33 L12 37 M36 33 L36 37" strokeWidth="2.4" />
+      </g>
+    ),
+    reducer: (
+      <g {...common}>
+        <path d="M12 6 L36 6 L36 18 L30 28 L30 42 L18 42 L18 28 L12 18 Z" />
+        <path d="M11 6 L37 6 M17 42 L31 42" strokeWidth="2.6" />
+      </g>
+    ),
+    hinge: (
+      <g {...common}>
+        <path d="M6 10 L21 10 L21 38 L6 38 Z M27 10 L42 10 L42 38 L27 38 Z" />
+        <path d="M21 9 L27 9 L27 39 L21 39 Z" />
+        <path d="M21 15 L27 15 M21 21 L27 21 M21 27 L27 27 M21 33 L27 33" strokeWidth="1" />
+        {[14, 24, 34].map((y) => <g key={y}><circle cx="13" cy={y} r="1.3" /><circle cx="35" cy={y} r="1.3" /></g>)}
+      </g>
+    ),
+    caster: (
+      <g {...common}>
+        <path d="M10 8 L38 8 L38 11 L10 11 Z" />
+        <path d="M18 11 L30 11 L28 15 L20 15 Z" />
+        <path d="M17 15 L17 30 M31 15 L31 30 M17 15 L31 15" />
+        <circle cx="24" cy="31" r="10" />
+        <circle cx="24" cy="31" r="3.5" />
+      </g>
+    ),
   }
   return (
     <svg viewBox="0 0 48 48" className={className}>

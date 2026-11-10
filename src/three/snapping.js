@@ -7,6 +7,9 @@
  *  hole → hole : 洞洞鐵、角鐵、板材孔對孔疊放
  *  port → port : 水管與管件管口接合
  *
+ * 相容性：錨點帶 thread（牙規 / 管徑）與 d（mm）。螺帽只會套上同牙規的螺條 / 螺栓，
+ * 螺栓 / 螺帽不會吸進比自己細的孔，管口只接同管徑（異徑接頭兩端各自標示）。
+ *
  * 座標：場景單位 cm；錨點資料為 mm（乘上 S）。
  */
 import * as THREE from 'three'
@@ -29,8 +32,15 @@ export function worldAnchors(obj, def, params) {
     dir: new THREE.Vector3(...a.dir).applyQuaternion(q).normalize(),
     half: (a.half ?? 0) * S,
     seat: a.seat === undefined ? undefined : a.seat * S,
+    d: a.d, // mm
+    thread: a.thread,
   }))
 }
+
+/** 牙規 / 孔徑相容性：M8 螺帽只套 M8 螺條；螺栓不能穿進比自己細的孔；15A 管口只接 15A */
+const FIT_TOL = 0.6 // mm
+const fitsHole = (shaft, hole) => !(shaft.d && hole.d) || shaft.d <= hole.d + FIT_TOL
+const sameThread = (a, b) => !(a.thread && b.thread) || a.thread === b.thread
 
 /** 點到線段距離與投影參數 t */
 function pointSegment(pt, center, dir, half) {
@@ -69,6 +79,7 @@ export function applySnap(obj, self, targets, { grid, magnet }) {
     for (const t of targets) {
       // ---- 螺條 / 螺栓 穿孔 ----
       if (a.kind === 'pin' && t.kind === 'hole') {
+        if (!fitsHole(a, t)) continue
         const align = Math.abs(a.dir.dot(t.dir))
         if (align < 0.8) continue
         const { d } = pointSegment(t.p, a.p, a.dir, a.half)
@@ -89,6 +100,7 @@ export function applySnap(obj, self, targets, { grid, magnet }) {
       }
       // ---- 螺帽 / 華司 → 孔 或 螺條 ----
       if (a.kind === 'bore' && (t.kind === 'hole' || t.kind === 'pin')) {
+        if (t.kind === 'pin' ? !sameThread(a, t) : !fitsHole(a, t)) continue
         const { d, t: along } = pointSegment(a.p, t.p, t.dir, t.half)
         if (d > THR) continue
         consider(d * 0.9, () => {
@@ -119,6 +131,7 @@ export function applySnap(obj, self, targets, { grid, magnet }) {
       }
       // ---- 管口接合 ----
       if (a.kind === 'port' && t.kind === 'port') {
+        if (!sameThread(a, t)) continue
         const d = a.p.distanceTo(t.p)
         if (d > THR_PORT) continue
         consider(d, () => {

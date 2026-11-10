@@ -10,6 +10,7 @@ const CATS = [
   { key: 'profile', label: '型材' },
   { key: 'pipe', label: '水管' },
   { key: 'panel', label: '板材' },
+  { key: 'hardware', label: '五金配件' },
 ]
 const CAT_GROUP = { bracket: 'profile', fitting: 'pipe' }
 
@@ -26,7 +27,7 @@ export function Sidebar() {
       const c = CAT_GROUP[p.category] ?? p.category
       if (cat !== 'all' && c !== cat) return false
       if (!k) return true
-      return [p.name['zh-TW'], p.name.en, p.standard, ...(p.aliases ?? [])].join(' ').toLowerCase().includes(k)
+      return [p.name['zh-TW'], p.name.en, p.standard, ...(p.aliases ?? []), ...(p.params?.size?.options ?? [])].join(' ').toLowerCase().includes(k)
     })
   }, [pkg, q, cat])
 
