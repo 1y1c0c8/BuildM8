@@ -17,7 +17,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { ASSEMBLY_JSON_SCHEMA, ASSEMBLY_SCHEMA } from '../data/schema'
 import { normalizeParams, resolvePartRef } from '../data/parts'
-import { buildCdRack, buildClockCase, buildPipeShelf, buildSquareFrame } from './builders'
+import { buildCdRack, buildClockCase, buildPipeShelf, buildSquareFrame, buildUPlateClock } from './builders'
 
 export const STAGES = [
   { key: 'parse', label: '解析需求' },
@@ -31,12 +31,20 @@ const INTENTS = [
   { key: 'cd_rack', words: ['cd', '光碟', '唱片', '收納', '展示架', '書擋'], builder: buildCdRack, needs: ['plywood_panel', 'threaded_rod', 'hex_nut', 'washer', 'cap_nut'] },
   { key: 'pipe_shelf', words: ['水管', '工業風', '層架', '置物架', '書架', 'pipe', 'shelf'], builder: buildPipeShelf, needs: ['gi_pipe', 'gi_tee', 'gi_elbow', 'gi_flange', 'plywood_panel'] },
   { key: 'square_frame', words: ['框架', '方框', '框', 'frame', '骨架', '方形', '角鐵'], builder: buildSquareFrame, needs: ['threaded_rod', 'perforated_bar', 'l_bracket', 'hex_nut', 'washer', 'cap_nut'] },
+  // 「折板」或「U 型 / ㄇ 型 + 鐘」→ U 型折板時鐘（優先於一般 clock；只說「時鐘」仍走合板外殼）
+  {
+    key: 'u_plate_clock',
+    words: ['折板', 'u型', 'u 型', 'u形', 'ㄇ型', 'ㄇ 型', 'ㄈ型', '鈑金', '4x4', '4×4'],
+    match: (t) => t.includes('折板') || (/(u\s*[型形]|ㄇ\s*型|ㄈ\s*型|鈑金|4\s*[x×]\s*4)/.test(t) && /(鐘|clock)/.test(t)),
+    builder: buildUPlateClock,
+    needs: ['u_folded_plate', 'clock_movement'],
+  },
 ]
 
 /** ① 解析自然語言（Mock：關鍵字 + 尺寸抽取） */
 export function parseIntent(text) {
   const t = text.toLowerCase()
-  const scored = INTENTS.map((it) => ({ it, score: it.words.filter((w) => t.includes(w)).length }))
+  const scored = INTENTS.map((it) => ({ it, score: it.match ? (it.match(t) ? 100 : 0) : it.words.filter((w) => t.includes(w)).length }))
   scored.sort((a, b) => b.score - a.score)
   const hit = scored[0].score > 0 ? scored[0].it : null
   // 尺寸：「30公分」「20 cm」「300mm」
@@ -101,7 +109,7 @@ export async function runCopilot(text, { pkg, mode = 'mock', apiKey, onStage = (
     if (!intent.intent) {
       return {
         kind: 'clarify',
-        text: '我還不太確定你想做什麼 🤔 目前 Mock 模式認得：「方形時鐘外殼」、「CD 收納展示架」、「簡易方形框架」、「工業風水管層架」。想自由設計的話，可以按下方「用我的 Claude 帳號生成」（免 API 費用），或在 ⚙ 設定 Claude API 金鑰。',
+        text: '我還不太確定你想做什麼 🤔 目前 Mock 模式認得：「方形時鐘外殼」、「CD 收納展示架」、「簡易方形框架」、「工業風水管層架」、「U 型折板時鐘」。想自由設計的話，可以按下方「用我的 Claude 帳號生成」（免 API 費用），或在 ⚙ 設定 Claude API 金鑰。',
       }
     }
     raw = intent.intent.builder(pkg, dimsFor(intent))
@@ -122,6 +130,7 @@ function dimsFor({ key, dims }) {
     case 'square_frame': return clean({ size: pick(a, [150, 200, 300, 450, 600]), height: b ? Math.min(1000, Math.max(100, b)) : undefined })
     case 'cd_rack': return clean({ width: a ? Math.min(600, Math.max(200, a)) : undefined })
     case 'pipe_shelf': return clean({ rise: b ? Math.min(600, Math.max(150, b)) : undefined })
+    case 'u_plate_clock': return clean({ size: pick(a, [64, 89, 120, 140])?.toString() })
     default: return {}
   }
 }
@@ -178,6 +187,14 @@ export const buildSystemPrompt = (pkg) => `你是 BuildM8 的五金共創夥伴�
   * hinge：攤平 180°，原點在軸心，軸沿 Z、兩片葉片沿 ±X，葉片底面在 y = -kd/2。
   * caster：原點在地面（輪子正上方的旋轉軸），頂板頂面在 y = height，頂板 4 孔。
   * plywood_panel：中心為原點，寬沿 X、深沿 Z、厚沿 Y；pattern=corners 為距邊 15mm 四角孔。
+  * u_folded_plate（鍍鋅 U 型折板，size = 內寬 '64' / '89' / '120' / '140'）：原點在底板外面中心，底板厚 t 佔 y∈[0,t]；
+    兩腳在 x = ±(width/2 … width/2+t) 往 +Y 立起，外緣高 length+t；板條寬 depth 沿 Z 置中。底板中心大孔 + 四角小孔，每腳 4 孔。
+    互套技巧：兩片「相同」折板（depth = width、length = width + t）互轉 90° 即成 (width+2t) 的封閉方盒：
+    A 片 rotation [-90,0,0]、position [0, cy, +outer/2]（底板當前面、兩腳當左右牆）；
+    B 片 rotation [90,90,0]、position [0, cy, -outer/2]（底板當背板、兩腳當上下牆），outer = width + 2t、cy = outer/2。
+  * clock_movement（時鐘機芯 56×56×16，M7.5 螺牙軸）：原點在機身正面中心（貼面板背面），螺牙軸與指針朝 +Y，機身在 y∈[-16,0]；
+    12 點方向 = 局部 -Z。params.thickness = 面板厚（華司 + 黃銅螺帽鎖在 y = thickness），length = 螺牙軸長（需 ≥ 面板厚 + 3），
+    size = 指針 S / M / L。裝在 U 型折板前板時：rotation [90,0,0]、position = 前板內面中心（軸穿過中心孔，12 點朝上）。
 - 螺帽要確實夾住板材 / 洞洞鐵，螺條必須穿過孔位；零件不可懸空。
 - params 只填該零件有的參數（含 size），其餘填 null。
 - steps 用繁體中文、給新手的組裝步驟；summary 說明設計理念。

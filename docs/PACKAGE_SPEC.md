@@ -17,7 +17,7 @@
   "packageId": "taiwan_hardware_store_v1",
   "name": "台灣五金行 標準件包",
   "region": "TW",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "units": "mm",
   "standards": ["JIS", "CNS", "ISO", "DIN"],
   "source": { "type": "builtin" },          // 或 { "type": "api", "provider": "traceparts" }
@@ -122,15 +122,30 @@ M8 / 15A 的尺寸與 v1.0 完全相同，舊設計拼裝結果不變。
 | `hinge` | length, leaf, thickness, kd（軸徑）, hole_d, n | 鉸鏈攤平 180°；軸心原點；軸沿 Z、葉片 ±X；每片 n 孔 |
 | `caster` | wheel_d, wheel_w, plate, plate_t, height, hole_d | 腳輪；地面原點（旋轉軸正下方）；頂板頂面 y = height；4 孔 |
 | `panel` | width, depth, thickness, hole_d, pattern | 中心原點；寬 X、深 Z、厚 Y |
+| `u_folded_plate` | width（內寬）, length（腳高，自底板內面量）, depth（板條寬）, thickness, hole_center, hole_d | U 型折板；**底板外面中心**原點；底板 y∈[0,t]；兩腳在 x = ±(width/2 … width/2+t) 往 +Y 立起，外緣高 length+t；板條寬沿 Z。底板中心大孔 + 4 角孔，每腳 4 孔 |
+| `clock_movement` | thread, box, box_h, shaft_d, length（螺牙軸長）, thickness（面板厚）, hand_h / hand_m / hand_s | 時鐘機芯；**機身正面中心**原點（貼面板背面）；螺牙軸與指針朝 +Y、機身 y∈[−box_h, 0]；12 點 = −Z、3 點 = +X；華司 + 黃銅螺帽在 y = thickness；指針顯示 10:09:30 |
 
 ### 錨點（自動由幾何推導，不需手寫）
 
 | kind | 由誰提供 | 吸附行為 |
 |---|---|---|
-| `hole` | 洞洞鐵、一字片、T 片、角鐵、三角架、板材、法蘭、鉸鏈、腳輪頂板 | 被 pin / bore / 另一個 hole 吸附 |
-| `pin` | 螺條、螺栓、馬車螺絲、吊環、木螺絲、U 型管束兩腳 | 自動轉正、穿入孔（螺栓頭貼齊表面） |
+| `hole` | 洞洞鐵、一字片、T 片、角鐵、三角架、板材、法蘭、鉸鏈、腳輪頂板、U 型折板（中心孔 d = hole_center） | 被 pin / bore / 另一個 hole 吸附 |
+| `pin` | 螺條、螺栓、馬車螺絲、吊環、木螺絲、U 型管束兩腳、時鐘機芯螺牙軸（M7.5，只進 ≥ Ø6.9 的孔） | 自動轉正、穿入孔（螺栓頭 / 機芯機身貼齊表面） |
 | `bore` | 各種螺帽、華司 | 貼合孔表面，或沿螺條滑動 |
 | `port` | 水管、三通、四通、彎頭、管帽、大小頭、法蘭 | 管口對管口接合（含插入深度 engage） |
+
+### 2.4 U 型折板互套（v1.2）
+
+兩片**相同**的 `u_folded_plate` 只要滿足 `depth = width`、`length = width + t`（規格表 64 / 89 / 120 / 140 皆符合），
+轉 90° 互套就是外形 `width + 2t` 的封閉方盒（例：89 → 92mm 立方，4×4 木結構連接件）：
+
+| 片 | rotation | position | 角色 |
+|---|---|---|---|
+| A | `[-90, 0, 0]` | `[0, outer/2, +outer/2]` | 底板 = 前面（鐘面），兩腳 = 左右牆 |
+| B | `[90, 90, 0]` | `[0, outer/2, -outer/2]` | 底板 = 背板，兩腳 = 上下牆 |
+| 機芯 | `[90, 0, 0]` | `[0, outer/2, outer/2 - t]` | 機身貼前板內面，軸穿過中心孔，12 點朝上；`params.thickness = t` |
+
+範例產生器：`buildUPlateClock()`（`src/ai/builders.js`）。折板為鈑金件，台灣請鈑金行 / 鐵材行裁切折彎鑽孔，或購買進口木結構連接件。
 
 ## 3. AI 組合矩陣（Assembly）
 

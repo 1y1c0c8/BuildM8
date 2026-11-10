@@ -37,7 +37,7 @@ export const taiwan_hardware_store_v1 = {
   packageId: 'taiwan_hardware_store_v1',
   name: '台灣五金行 標準件包',
   region: 'TW',
-  version: '1.1.0',
+  version: '1.2.0',
   units: 'mm',
   standards: ['JIS', 'CNS', 'ISO', 'DIN'],
   source: { type: 'builtin' },
@@ -140,6 +140,71 @@ export const taiwan_hardware_store_v1 = {
       priceTWD: 30,
       aliases: ['三角架', '層板架', '層板托架', '托架', '角架', '壁架', 'shelf bracket'],
       note: '規格以「水平腳×垂直腳」表示；尺寸為常見品近似值。',
+    },
+
+    // ───────────── v1.2：鈑金折板 / 時鐘機芯 ─────────────
+    {
+      id: 'u_folded_plate',
+      category: 'bracket',
+      name: { 'zh-TW': '鍍鋅 U 型折板', en: 'Galvanized U-Folded Plate' },
+      standard: '鍍鋅鋼板折彎（木結構 U 型連接件近似）',
+      material: 'zinc',
+      geometry: {
+        type: 'u_folded_plate',
+        width: '@w',
+        length: '@h',
+        depth: '@d',
+        thickness: '@t',
+        hole_center: '@hc',
+        hole_d: '@hs',
+      },
+      params: { size: { label: '內寬', default: '89', options: ['64', '89', '120', '140'] } },
+      sizes: {
+        '64': { w: 64, h: 65.2, d: 64, t: 1.2, hc: 10, hs: 4.5, label: '2×3 角材用', price: 40 },
+        '89': { w: 89, h: 90.5, d: 89, t: 1.5, hc: 10, hs: 5, label: '4×4 角材用', price: 55 },
+        '120': { w: 120, h: 121.5, d: 120, t: 1.5, hc: 10, hs: 5.5, label: '12 cm 方', price: 70 },
+        '140': { w: 140, h: 142, d: 140, t: 2, hc: 10, hs: 6.5, label: '6×6 角材用', price: 80 },
+      },
+      bom: { name: '鍍鋅 U 型折板 內寬 {w}×腳高 {h}×寬 {d}mm {t}t', spec: '中心孔 Ø{hc}＋小孔 Ø{hs}（鈑金訂製參考價）', unit: '片' },
+      priceTWD: 55,
+      aliases: ['U型折板', 'ㄇ型折板', 'ㄇ型鐵片', 'U型固定片', 'ㄈ型', 'U型連接件', '木結構連接件', 'u folded plate'],
+      note:
+        '鈑金折彎件：五金行少有現貨，最容易請鈑金行 / 鐵材行訂做（1.2–1.5mm 鍍鋅板裁成長條、折兩道 90°、鑽孔），' +
+        '或買進口木結構連接件（Simpson 類的柱底座 / 柱頂蓋）。網路搜尋關鍵字：「鍍鋅 U 型折板」「木結構連接件」。' +
+        '腳高 = 內寬 + 板厚、寬 = 內寬時，兩片相同折板轉 90° 互套即成封閉方盒。價格為參考價（每片約 NT$40–80）。',
+    },
+    {
+      id: 'clock_movement',
+      category: 'hardware',
+      name: { 'zh-TW': '時鐘機芯（掃秒）', en: 'Quartz Sweep Clock Movement' },
+      standard: '石英掃秒機芯 56×56×16（M7.5 螺牙軸）',
+      material: 'plastic',
+      geometry: {
+        type: 'clock_movement',
+        thread: 'M7.5',
+        box: 56,
+        box_h: 16,
+        shaft_d: 7.5,
+        length: '$length',
+        thickness: '$thickness',
+        hand_h: '@hh',
+        hand_m: '@hm',
+        hand_s: '@hs',
+      },
+      params: {
+        size: { label: '指針', default: 'M', options: ['S', 'M', 'L'] },
+        length: { label: '螺牙軸長', default: 8, options: [5, 8, 11, 14], unit: 'mm' },
+        thickness: { label: '面板厚', default: 3, options: [0.8, 1, 1.2, 1.5, 2, 3, 4, 5, 6, 8, 10], unit: 'mm' },
+      },
+      sizes: {
+        S: { hh: 28, hm: 40, hs: 44, label: '小指針（分針 40mm）', price: 120 },
+        M: { hh: 50, hm: 70, hs: 78, label: '中指針（分針 70mm）', price: 150 },
+        L: { hh: 80, hm: 110, hs: 120, label: '大指針（分針 110mm）', price: 220 },
+      },
+      bom: { name: '時鐘機芯 掃秒（附指針、華司、螺帽）', spec: '{label}／螺牙軸 {length}mm／面板 {thickness}mm', unit: '顆' },
+      priceTWD: 150,
+      aliases: ['時鐘機芯', '掃秒機芯', '石英機芯', '靜音機芯', '鐘芯', 'clock movement'],
+      note: '台灣網購搜「時鐘機芯 掃秒」約 NT$100–250，選購時注意軸長需大於板厚＋華司（可用面板厚 ≈ 螺牙軸長 − 3mm）。需 1 顆 3 號電池。',
     },
 
     // ───────────── 螺牙 / 螺絲 ─────────────

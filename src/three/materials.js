@@ -52,6 +52,10 @@ function baseMaterials() {
     hole: new THREE.MeshStandardMaterial({ color: '#15181c', metalness: 0.2, roughness: 0.9 }),
     nylon: new THREE.MeshStandardMaterial({ color: '#e9e4d6', metalness: 0, roughness: 0.55 }),
     rubber: new THREE.MeshStandardMaterial({ color: '#33373d', metalness: 0, roughness: 0.85 }),
+    plastic: new THREE.MeshStandardMaterial({ color: '#202327', metalness: 0, roughness: 0.6 }),
+    brass: new THREE.MeshStandardMaterial({ color: '#c9a24a', metalness: 0.9, roughness: 0.3 }),
+    hand: new THREE.MeshStandardMaterial({ color: '#111316', metalness: 0.3, roughness: 0.45 }),
+    red: new THREE.MeshStandardMaterial({ color: '#d92b2b', metalness: 0.1, roughness: 0.5 }),
     thread: new THREE.MeshStandardMaterial({
       color: '#bfc5cc',
       metalness: 0.9,

@@ -249,6 +249,26 @@ export function PartGlyph({ type, className = '' }) {
         <circle cx="24" cy="31" r="3.5" />
       </g>
     ),
+    // ───── v1.2 新增 ─────
+    u_folded_plate: (
+      <g {...common}>
+        <path d="M8 16 L8 36 L30 42 L30 22" />
+        <path d="M8 16 L18 11 L18 31 M30 22 L40 17 L40 37 L30 42" />
+        <path d="M8 36 L18 31 L40 37" strokeDasharray="2 2" strokeWidth="1" />
+        <ellipse cx="19" cy="36.5" rx="1.8" ry="1" />
+        <circle cx="13" cy="22" r=".9" />
+        <circle cx="35" cy="27" r=".9" />
+      </g>
+    ),
+    clock_movement: (
+      <g {...common}>
+        <path d="M8 22 L24 14 L40 22 L24 30 Z" />
+        <path d="M8 22 L8 28 L24 36 L40 28 L40 22 M24 30 L24 36" />
+        <path d="M24 22 L24 8" strokeWidth="2.2" />
+        <path d="M24 10 L16 6 M24 12 L33 9" strokeWidth="1.8" />
+        <path d="M24 9 L28 16" stroke="#ef4444" strokeWidth="1.2" />
+      </g>
+    ),
   }
   return (
     <svg viewBox="0 0 48 48" className={className}>

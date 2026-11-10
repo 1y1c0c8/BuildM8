@@ -14,6 +14,8 @@ import {
   hingeHoles,
   casterHoles,
   DIR45,
+  uPlateHoles,
+  CLOCK_DISPLAY_ANGLES,
 } from '../data/parts'
 
 export const S = 0.1 // mm → cm
@@ -253,6 +255,121 @@ const BUILDERS = {
     // shape y → 世界 -z，因此孔的 z 取負號
     panelHoles(g).forEach(([x, z]) => sh.holes.push(circle((g.hole_d * S) / 2, x * S, -z * S)))
     return [{ geometry: extrudeY(sh, g.thickness * S, { segments: 20 }), mat: 'plywood' }]
+  },
+
+  // ───────────── v1.2 新增零件 ─────────────
+  /** U 型折板：原點在底板外面中心；底板 y∈[0,t]，兩腳在 ±X 往 +Y 立起（外緣高 length+t），板條寬 depth 沿 Z */
+  u_folded_plate(g) {
+    const W = g.width * S
+    const H = g.length * S
+    const D = g.depth * S
+    const t = g.thickness * S
+    const { base, leg } = uPlateHoles(g)
+    const bs = new THREE.Shape()
+    bs.moveTo(-W / 2 - t, -D / 2)
+    bs.lineTo(W / 2 + t, -D / 2)
+    bs.lineTo(W / 2 + t, D / 2)
+    bs.lineTo(-W / 2 - t, D / 2)
+    bs.closePath()
+    // shape y → 世界 −z
+    base.forEach(([x, z], i) => bs.holes.push(circle(((i === 0 ? g.hole_center : g.hole_d) * S) / 2, x * S, -z * S)))
+    const plate = extrudeY(bs, t, { center: false, segments: 24 })
+    const legGeo = (sx) => {
+      // 先在 XY 平面畫腳（shape x = 世界高度 y，shape y = −z），擠出厚度後繞 Z 轉 90° 立起
+      const ls = new THREE.Shape()
+      ls.moveTo(t, -D / 2)
+      ls.lineTo(H + t, -D / 2)
+      ls.lineTo(H + t, D / 2)
+      ls.lineTo(t, D / 2)
+      ls.closePath()
+      leg.forEach(([y, z]) => ls.holes.push(circle((g.hole_d * S) / 2, y * S, -z * S)))
+      const geo = extrudeY(ls, t, { center: false, segments: 16 })
+      geo.rotateZ(Math.PI / 2) // (x,y)→(−y,x)：厚度落在 x∈[−t,0]，高度沿 +Y
+      geo.translate(sx > 0 ? W / 2 + t : -W / 2, 0, 0)
+      return geo
+    }
+    return [
+      { geometry: plate, mat: 'zinc' },
+      { geometry: legGeo(1), mat: 'zinc' },
+      { geometry: legGeo(-1), mat: 'zinc' },
+    ]
+  },
+
+  /**
+   * 時鐘機芯：原點在機身正面中心（貼面板背面處），螺牙軸 / 指針朝 +Y，機身在 y∈[−box_h, 0]。
+   * 12 點方向 = 局部 −Z、3 點 = +X。華司 + 黃銅螺帽鎖在 y = thickness（面板厚）處，指針顯示 10:09:30。
+   */
+  clock_movement(g) {
+    const B = g.box * S
+    const bh = g.box_h * S
+    const L = g.length * S
+    const thk = g.thickness * S
+    const body = extrudeY(roundedRect(B, B, 0.3), bh, { center: false, segments: 8 })
+    body.translate(0, -bh, 0)
+    const battery = cyl(0.72, 5.05, 24)
+    battery.rotateZ(Math.PI / 2)
+    battery.translate(0, -bh + 0.52, B * 0.12) // 3 號電池半埋在背面，凸出約 2mm
+    const bay = new THREE.BoxGeometry(5.3, 0.04, 1.6)
+    bay.translate(0, -bh - 0.02, B * 0.12)
+    const knob = cyl(0.6, 0.2, 24)
+    knob.translate(B * 0.22, -bh - 0.1, -B * 0.22)
+    const hook = new THREE.BoxGeometry(1.2, 0.08, 0.8)
+    hook.translate(0, -bh - 0.04, -B * 0.4)
+    const shaft = cyl((g.shaft_d * S) / 2, L, 24)
+    shaft.translate(0, L / 2, 0)
+    const washer = extrudeY(ringShape(0.6, 0.385), 0.06, { center: false, segments: 32 })
+    washer.translate(0, thk, 0)
+    const nutShape = hexShape(1.0)
+    nutShape.holes.push(circle((g.shaft_d * S) / 2))
+    const nut = extrudeY(nutShape, 0.22, { center: false, bevel: 0.015 })
+    nut.translate(0, thk + 0.06 + 0.015, 0)
+    const top = Math.max(L, thk + 0.3)
+    const yH = top + 0.1
+    const yM = top + 0.24
+    const yS = top + 0.38
+    const tube = (r, y0, y1) => {
+      const c = cyl(r, y1 - y0, 20)
+      c.translate(0, (y0 + y1) / 2, 0)
+      return c
+    }
+    // 指針：梯形板，shape y = 長度方向（→ 局部 −Z = 12 點），再繞 Y 轉到該時刻角度
+    const hand = (len, w, tail, y, ang, th = 0.05) => {
+      const sh = new THREE.Shape()
+      sh.moveTo(-w / 2, -tail)
+      sh.lineTo(w / 2, -tail)
+      sh.lineTo(w * 0.22, len)
+      sh.lineTo(-w * 0.22, len)
+      sh.closePath()
+      const geo = extrudeY(sh, th, { center: false, segments: 4 })
+      geo.rotateY(-ang)
+      geo.translate(0, y, 0)
+      return geo
+    }
+    const hub = (r, y, th = 0.05) => {
+      const c = cyl(r, th, 24)
+      c.translate(0, y + th / 2, 0)
+      return c
+    }
+    const A = CLOCK_DISPLAY_ANGLES
+    return [
+      { geometry: body, mat: 'plastic' },
+      { geometry: bay, mat: 'hole' },
+      { geometry: battery, mat: 'stainless' },
+      { geometry: knob, mat: 'plastic' },
+      { geometry: hook, mat: 'steel' },
+      { geometry: shaft, mat: 'thread', threadRepeat: g.length / 0.5 },
+      { geometry: washer, mat: 'brass' },
+      { geometry: nut, mat: 'brass' },
+      { geometry: tube(0.26, L - 0.01, yH), mat: 'brass' },
+      { geometry: tube(0.18, yH, yM), mat: 'brass' },
+      { geometry: tube(0.06, yM, yS + 0.1), mat: 'brass' },
+      { geometry: hand(g.hand_h * S, 0.5, 0.3, yH, A.hour), mat: 'hand' },
+      { geometry: hub(0.42, yH), mat: 'hand' },
+      { geometry: hand(g.hand_m * S, 0.38, 0.3, yM, A.minute), mat: 'hand' },
+      { geometry: hub(0.34, yM), mat: 'hand' },
+      { geometry: hand(g.hand_s * S, 0.12, g.hand_s * S * 0.22, yS, A.second, 0.03), mat: 'red' },
+      { geometry: hub(0.2, yS, 0.08), mat: 'red' },
+    ]
   },
 
   // ───────────── v1.1 新增零件 ─────────────

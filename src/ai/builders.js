@@ -221,3 +221,44 @@ export function buildPipeShelf(pkg, { span = 200, rise = 300 } = {}) {
     ],
   }
 }
+
+/**
+ * ⑤ U 型折板方形時鐘：兩片相同的鍍鋅 U 型折板轉 90° 互套成封閉方盒，前板中心孔裝掃秒機芯。
+ *  A 片：底板 = 鐘面（前，+Z），兩腳 = 左右牆（Euler [−90, 0, 0]）。
+ *  B 片：底板 = 背板（後，−Z），兩腳 = 上下牆（局部 +Y → +Z、X → +Y、Z → +X → Euler [90, 90, 0]）。
+ *  互套條件：板條寬 depth = 內寬 width、腳高 length = width + t → 外形為 (width+2t) 立方，四面齊平。
+ */
+export function buildUPlateClock(pkg, { size = '89' } = {}) {
+  const plate = { size: String(size) }
+  const u = geo(pkg, 'u_folded_plate', plate)
+  const t = u.thickness
+  const W = u.width
+  const outer = W + 2 * t // 立方體外形（mm）
+  const cy = outer / 2 // 立在桌面時的中心高
+  const zf = outer / 2 // 前面（A 片底板外面）
+  const mv = { size: 'S', length: 8, thickness: t }
+  const items = [
+    // A：局部 +Y（腳）→ 世界 −Z，局部 Z（板條寬）→ 世界 +Y
+    { partId: 'u_folded_plate', params: plate, position: [0, cy, zf], rotation: [-90, 0, 0] },
+    // B：局部 +Y → 世界 +Z，局部 X → 世界 +Y，局部 Z → 世界 +X
+    { partId: 'u_folded_plate', params: plate, position: [0, cy, -zf], rotation: [90, 90, 0] },
+    // 機芯：機身貼在前板內面，螺牙軸朝 +Z 穿出中心孔；局部 −Z（12 點）→ 世界 +Y
+    { partId: 'clock_movement', params: mv, position: [0, cy, zf - t], rotation: [90, 0, 0] },
+  ]
+  const cm = (v) => Math.round(v) / 10
+  return {
+    schema: ASSEMBLY_SCHEMA,
+    packageId: pkg.packageId,
+    title: `U 型折板方形時鐘 ${cm(outer)} cm`,
+    summary: `兩片完全相同的鍍鋅 U 型折板（內寬 ${W}mm、腳高 ${u.length}mm、${t}mm 厚）轉 90° 互相套住，就成了 ${cm(outer)} cm 的封閉金屬方盒：一片的底板當鐘面、兩腳當左右牆；另一片的底板當背板、兩腳當上下牆。前板中心孔裝上掃秒機芯，用附贈的華司與黃銅螺帽鎖緊，再裝上時、分、秒針即可。`,
+    items,
+    steps: [
+      `準備 2 片相同的鍍鋅 U 型折板：請鈑金行 / 鐵材行用 ${t}mm 鍍鋅板裁成 ${u.depth}mm 寬的長條，折兩道 90° 成「內寬 ${W}mm、腳高 ${u.length}mm」的 ㄇ 字，底板中心鑽 Ø${u.hole_center} 孔、四角鑽 Ø${u.hole_d} 孔；也可以網購進口 4×4 木結構連接件（搜「鍍鋅 U 型折板」「木結構連接件」）。`,
+      '網購「時鐘機芯 掃秒」（附指針、華司、螺帽），確認螺牙軸長大於板厚＋華司（例：板厚 1.5mm 選 8mm 軸即可）。',
+      '取第一片當前板：機芯從內側把螺牙軸穿過底板中心孔，外側套上華司、鎖上黃銅螺帽（手轉緊即可，太緊會壓壞機芯）。',
+      '先把機芯背面旋鈕轉到 12 點，再依序壓入時針、分針、秒針，三針都對準 12 點。',
+      '裝上 3 號電池，把第二片折板轉 90°（兩腳變成上下）從後方套進第一片，四邊齊平就成了方盒。',
+      '若互套後會鬆動，可在接縫內側貼一小段強力雙面膠或點 AB 膠；掛牆時用背板的孔掛在釘子上。',
+    ],
+  }
+}

@@ -143,6 +143,25 @@ export function casterHoles(g) {
   return [[-o, -o], [o, -o], [-o, o], [o, o]]
 }
 
+/**
+ * U 型折板孔位（原點在底板外面中心；底板 y∈[0,t]，兩腳在 x = ±(width/2 … width/2+t) 往 +Y 立起，
+ * 腳的外緣高 = length + t；板條寬 depth 沿 Z 置中）。
+ *  base : 底板 [x, z]（第 0 個為中心大孔，其後 4 個角孔）
+ *  leg  : 每支腳 [y, z]（4 孔，2×2，置於腳外面的中心附近）
+ */
+export function uPlateHoles(g) {
+  const c = Math.min(g.width, g.depth) / 2 - Math.max(g.hole_d * 2, Math.min(g.width, g.depth) * 0.16)
+  const ym = (g.length + g.thickness) / 2
+  const cy = Math.min(c, ym - g.thickness - g.hole_d * 1.5)
+  return {
+    base: [[0, 0], [-c, -c], [c, -c], [-c, c], [c, c]],
+    leg: [[ym - cy, -c], [ym - cy, c], [ym + cy, -c], [ym + cy, c]],
+  }
+}
+
+/** 時鐘機芯：12 點方向 = 局部 −Z、3 點 = +X（從 +Y 往下看順時針）；回傳展示時刻 10:09:30 的指針角度（rad，自 12 點順時針） */
+export const CLOCK_DISPLAY_ANGLES = { hour: ((10 + 9.5 / 60) / 12) * Math.PI * 2, minute: (9.5 / 60) * Math.PI * 2, second: (30 / 60) * Math.PI * 2 }
+
 /** 45° 彎頭第二口方向（XY 平面，往右上 45°） */
 export const DIR45 = [Math.SQRT1_2, Math.SQRT1_2, 0]
 
@@ -181,6 +200,18 @@ export function getAnchors(def, params) {
     }
     case 'panel':
       return panelHoles(g).map(([x, z]) => hole([x, 0, z], [0, 1, 0], g.thickness / 2))
+    case 'u_folded_plate': {
+      const { base, leg } = uPlateHoles(g)
+      const t = g.thickness
+      const xl = g.width / 2 + t / 2
+      return [
+        ...base.map(([x, z], i) => hole([x, t / 2, z], [0, 1, 0], t / 2, i === 0 ? g.hole_center : g.hole_d)),
+        ...[1, -1].flatMap((sx) => leg.map(([y, z]) => hole([sx * xl, y, z], [sx, 0, 0], t / 2))),
+      ]
+    }
+    case 'clock_movement':
+      // 螺牙軸：像螺栓一樣「座面」在機身正面（原點），軸朝 +Y 穿出面板；機身在 −Y 側
+      return [{ kind: 'pin', p: [0, g.length / 2, 0], dir: [0, -1, 0], half: g.length / 2, seat: 0, d: g.shaft_d, thread: th }]
     case 'hinge':
       return hingeHoles(g).map(([x, z]) => hole([x, -g.kd / 2 + g.thickness / 2, z], [0, 1, 0], g.thickness / 2))
     case 'caster':
@@ -256,6 +287,7 @@ export function restY(def, params) {
     case 't_plate':
     case 'panel':
       return g.thickness / 2
+    case 'clock_movement': return g.box_h + 2 // 機身平放桌面（背面電池凸出約 2mm）、指針朝上
     case 'threaded_rod': return g.length / 2
     case 'hex_bolt':
     case 'carriage_bolt':
