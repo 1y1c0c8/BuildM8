@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import Workspace from './three/Workspace'
-import { TopBar } from './components/TopBar'
-import { Sidebar } from './components/Sidebar'
+import { TopBar, CanvasToolbar } from './components/TopBar'
+import { Sidebar, PartsDrawer } from './components/Sidebar'
 import { CopilotPanel, useCopilotChat } from './components/CopilotPanel'
 import { BomPanel } from './components/BomPanel'
 import { KeyLayer } from './components/KeyDialogs'
 import { Inspector } from './components/Inspector'
-import { IconKeyboard, IconSparkle, IconBox } from './components/Icons'
+import { IconKeyboard, IconSparkle, IconBox, IconCart, IconChevron } from './components/Icons'
 import { useStore } from './store/useStore'
 import { useSidebar } from './store/useSidebar'
+import { useLayout } from './store/useLayout'
+import { useBreakpoint } from './hooks/useBreakpoint'
 import { getPackage } from './data/packages'
 import { restY, defaultParams } from './data/parts'
 import { registry } from './three/registry'
@@ -16,27 +18,165 @@ import mockSquareFrame from './data/mock/square_frame.json'
 
 export default function App() {
   const chat = useCopilotChat()
+  const bp = useBreakpoint()
   useShortcuts()
+  useAutoClosePanels(bp)
+  const runMock = () => chat.runMockJson(mockSquareFrame, 'AI 模擬生成：讀取 mock/square_frame.json')
 
   return (
     <div className="h-full flex flex-col">
-      <TopBar generating={chat.busy} onMockGenerate={() => chat.runMockJson(mockSquareFrame, 'AI 模擬生成：讀取 mock/square_frame.json')} />
-      <div className="flex-1 min-h-0 flex">
+      <TopBar generating={chat.busy} onMockGenerate={runMock} />
+      <div className="flex-1 min-h-0 flex relative overflow-hidden">
         <Sidebar />
         <main className="relative flex-1 min-w-0">
-          <CanvasArea onTry={() => chat.runMockJson(mockSquareFrame, 'AI 模擬生成：讀取 mock/square_frame.json')} />
+          <CanvasArea onTry={runMock} bp={bp} />
         </main>
-        <aside className="w-[368px] shrink-0 flex flex-col border-l border-white/[0.06] bg-ink-900/70 backdrop-blur-xl z-10">
-          <CopilotPanel chat={chat} />
-          <BomPanel />
-        </aside>
+        {bp === 'desktop' && (
+          <aside className="w-[320px] xl:w-[368px] shrink-0 flex flex-col border-l border-white/[0.06] bg-ink-900/70 backdrop-blur-xl z-10">
+            <CopilotPanel chat={chat} />
+            <BomPanel />
+          </aside>
+        )}
+        {bp === 'tablet' && <TabletPanel chat={chat} />}
       </div>
+      {bp === 'mobile' && (
+        <>
+          <MobileSheet chat={chat} />
+          <MobileNav />
+          <PartsDrawer />
+        </>
+      )}
       <KeyLayer />
     </div>
   )
 }
 
-function CanvasArea({ onTry }) {
+/** 小螢幕：AI 產生設計後自動收起面板，讓使用者看到拼裝動畫；切到桌面版時清掉面板狀態 */
+function useAutoClosePanels(bp) {
+  const lastAssembly = useStore((s) => s.lastAssembly)
+  useEffect(() => {
+    if (lastAssembly && bp !== 'desktop') useLayout.getState().close()
+  }, [lastAssembly, bp])
+  useEffect(() => {
+    if (bp === 'desktop') useLayout.getState().close()
+  }, [bp])
+}
+
+/** 平板：從右側滑出的 AI 助手 + 採購清單 */
+function TabletPanel({ chat }) {
+  const panel = useLayout((s) => s.panel)
+  const close = useLayout((s) => s.close)
+  const open = panel === 'ai' || panel === 'bom'
+  return (
+    <>
+      <div
+        onClick={close}
+        className={`absolute inset-0 z-20 bg-ink-950/40 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      />
+      <aside
+        id="side-panel"
+        aria-label="AI 助手與採購清單"
+        aria-hidden={!open}
+        inert={!open}
+        className={`absolute inset-y-0 right-0 z-30 w-[380px] max-w-[92vw] flex flex-col bg-ink-900 border-l border-white/[0.08] shadow-2xl shadow-black/60 transition-transform duration-250 ease-out ${
+          open ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <CopilotPanel chat={chat} />
+        <BomPanel />
+      </aside>
+    </>
+  )
+}
+
+/** 手機：底部面板（AI 助手／採購清單分頁） */
+function MobileSheet({ chat }) {
+  const panel = useLayout((s) => s.panel)
+  const openPanel = useLayout((s) => s.open)
+  const close = useLayout((s) => s.close)
+  const open = panel === 'ai' || panel === 'bom'
+  const count = useStore((s) => s.items.length)
+  const [tab, setTab] = useState('ai')
+  useEffect(() => {
+    if (panel === 'ai' || panel === 'bom') setTab(panel)
+  }, [panel])
+
+  return (
+    <div className={`fixed inset-x-0 top-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open} inert={!open}>
+      <div onClick={close} className={`absolute inset-0 bg-ink-950/55 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0'}`} />
+      <section
+        role="dialog"
+        aria-label={tab === 'ai' ? 'AI 助手' : '採購清單'}
+        className={`absolute inset-x-0 bottom-0 h-[78%] flex flex-col rounded-t-2xl bg-ink-900 border-t border-white/[0.08] shadow-[0_-20px_60px_-10px_rgba(0,0,0,.7)] transition-transform duration-250 ease-out ${
+          open ? 'translate-y-0' : 'translate-y-full'
+        }`}
+      >
+        <div className="shrink-0 pt-2 pb-1.5 px-3 flex items-center gap-2 border-b border-white/5">
+          <div className="absolute left-1/2 -translate-x-1/2 top-1.5 h-1 w-10 rounded-full bg-white/15" />
+          <div className="mt-2 flex p-0.5 rounded-lg bg-ink-800 border border-white/5">
+            {[
+              ['ai', 'AI 助手'],
+              ['bom', `採購清單${count ? ` (${count})` : ''}`],
+            ].map(([k, l]) => (
+              <button
+                key={k}
+                onClick={() => openPanel(k)}
+                aria-pressed={tab === k}
+                className={`h-8 px-3 rounded-md text-xs font-semibold transition ${tab === k ? 'bg-ink-600 text-white' : 'text-ink-300'}`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+          <button onClick={close} aria-label="收起面板" className="mt-2 ml-auto size-9 grid place-items-center rounded-lg text-ink-300 hover:text-white hover:bg-white/5">
+            <IconChevron size={18} />
+          </button>
+        </div>
+        {tab === 'ai' ? <CopilotPanel chat={chat} /> : <BomPanel full />}
+      </section>
+    </div>
+  )
+}
+
+/** 手機：底部導覽列 */
+function MobileNav() {
+  const panel = useLayout((s) => s.panel)
+  const toggle = useLayout((s) => s.toggle)
+  const count = useStore((s) => s.items.length)
+  const items = [
+    { key: 'parts', label: '零件', icon: <IconBox size={20} /> },
+    { key: 'ai', label: 'AI 助手', icon: <IconSparkle size={20} /> },
+    { key: 'bom', label: '採購清單', icon: <IconCart size={20} />, badge: count },
+  ]
+  return (
+    <nav aria-label="主要功能" className="relative z-40 shrink-0 grid grid-cols-3 h-14 box-content pb-[env(safe-area-inset-bottom)] border-t border-white/[0.08] bg-ink-900/95 backdrop-blur-xl">
+      {items.map((it) => {
+        const active = panel === it.key
+        return (
+          <button
+            key={it.key}
+            onClick={() => toggle(it.key)}
+            aria-pressed={active}
+            className={`relative flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition ${active ? 'text-brand-soft' : 'text-ink-300'}`}
+          >
+            <span className="relative">
+              {it.icon}
+              {it.badge > 0 && (
+                <span className="absolute -top-1.5 -right-3 min-w-4 h-4 px-1 rounded-full bg-brand text-ink-950 text-[9px] font-bold font-mono grid place-items-center">
+                  {it.badge > 99 ? '99+' : it.badge}
+                </span>
+              )}
+            </span>
+            {it.label}
+            {active && <span className="absolute top-0 inset-x-6 h-0.5 rounded-full bg-brand" />}
+          </button>
+        )
+      })}
+    </nav>
+  )
+}
+
+function CanvasArea({ onTry, bp }) {
   const ref = useRef()
   const [dragOver, setDragOver] = useState(false)
   const count = useStore((s) => s.items.length)
@@ -84,9 +224,10 @@ function CanvasArea({ onTry }) {
         )}
       </div>
 
-      <ShortcutHint />
+      <CanvasToolbar />
+      {bp === 'desktop' && <ShortcutHint />}
 
-      {count === 0 && <EmptyState onTry={onTry} />}
+      {count === 0 && <EmptyState onTry={onTry} bp={bp} />}
       {dragOver && (
         <div className="pointer-events-none absolute inset-3 rounded-2xl border-2 border-dashed border-brand/60 bg-brand/[0.04] grid place-items-center">
           <div className="text-brand-soft text-sm font-semibold">放開以加入零件</div>
@@ -97,18 +238,34 @@ function CanvasArea({ onTry }) {
   )
 }
 
-function EmptyState({ onTry }) {
+function EmptyState({ onTry, bp }) {
   return (
     <div className="pointer-events-none absolute inset-0 grid place-items-center">
-      <div className="pointer-events-auto text-center max-w-sm animate-rise">
+      <div className="pointer-events-auto text-center max-w-sm px-6 animate-rise">
         <div className="mx-auto size-14 rounded-2xl bg-gradient-to-br from-amber-300 to-orange-500 grid place-items-center text-ink-950 shadow-[0_10px_40px_-10px_rgba(245,158,11,.8)]">
           <IconSparkle size={26} />
         </div>
         <h1 className="mt-4 text-xl font-bold tracking-tight">像拼樂高一樣做 DIY</h1>
         <p className="mt-1.5 text-[13px] text-ink-300 leading-relaxed">
-          從左側拖曳五金行標準件到畫布，
-          <br />
-          或直接告訴右邊的 AI 你想做什麼。
+          {bp === 'mobile' ? (
+            <>
+              點下方「零件」加入五金行標準件，
+              <br />
+              或打開「AI 助手」說出你想做什麼。
+            </>
+          ) : bp === 'tablet' ? (
+            <>
+              點左側零件庫加入五金行標準件，
+              <br />
+              或打開右上角「AI 助手」說出你想做什麼。
+            </>
+          ) : (
+            <>
+              從左側拖曳五金行標準件到畫布，
+              <br />
+              或直接告訴右邊的 AI 你想做什麼。
+            </>
+          )}
         </p>
         <button
           onClick={onTry}
@@ -173,7 +330,8 @@ function useShortcuts() {
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         s.removeItem(s.selectedId)
       } else if (e.key === 'Escape') {
-        s.select(null)
+        if (useLayout.getState().panel) useLayout.getState().close()
+        else s.select(null)
       } else if (!mod && (e.key === 'g' || e.key === 't')) {
         s.setMode('translate')
       } else if (!mod && e.key === 'r') {

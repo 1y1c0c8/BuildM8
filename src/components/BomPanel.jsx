@@ -28,9 +28,11 @@ export function useBom() {
 const ORDER = ['panel', 'pipe', 'fitting', 'profile', 'bracket', 'hardware', 'rod', 'fastener']
 const order = (def) => ORDER.indexOf(def.category)
 
-export function BomPanel() {
+/** @param {{ full?: boolean }} props  full = 手機／平板面板中佔滿高度、不可收合 */
+export function BomPanel({ full = false }) {
   const { rows, total, count } = useBom()
-  const [open, setOpen] = useState(true)
+  const [openState, setOpen] = useState(true)
+  const open = full || openState
   const [copied, setCopied] = useState(false)
 
   const asText = () =>
@@ -60,13 +62,16 @@ export function BomPanel() {
   }
 
   return (
-    <section className={`shrink-0 border-t border-white/[0.06] flex flex-col ${open ? 'max-h-[44%]' : ''}`}>
-      <button onClick={() => setOpen((v) => !v)} className="h-11 shrink-0 px-4 flex items-center gap-2 hover:bg-white/[0.02]">
+    <section className={full ? 'flex-1 min-h-0 flex flex-col' : `shrink-0 border-t border-white/[0.06] flex flex-col ${open ? 'max-h-[44%]' : ''}`}>
+      <button
+        onClick={() => !full && setOpen((v) => !v)}
+        className={`h-11 shrink-0 px-4 flex items-center gap-2 ${full ? 'cursor-default border-b border-white/5' : 'hover:bg-white/[0.02]'}`}
+      >
         <IconCart size={15} className="text-brand" />
         <span className="text-sm font-semibold">採購清單 BOM</span>
         <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-ink-300">{count} 件</span>
         <span className="ml-auto text-xs font-mono text-ink-300">≈ NT$ {total.toLocaleString()}</span>
-        <IconChevron size={14} className={`text-ink-400 transition ${open ? '' : '-rotate-90'}`} />
+        {!full && <IconChevron size={14} className={`text-ink-400 transition ${open ? '' : '-rotate-90'}`} />}
       </button>
       {open && (
         <>

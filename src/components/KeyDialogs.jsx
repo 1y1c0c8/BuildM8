@@ -62,7 +62,7 @@ function Modal({ title, icon, onClose, children, footer, labelledBy }) {
   }, [onClose])
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4 bg-ink-950/70 backdrop-blur-sm animate-rise" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={labelledBy} className="panel w-full max-w-[440px] max-h-[calc(100vh-2rem)] flex flex-col rounded-2xl">
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={labelledBy} className="panel w-full max-w-[440px] max-h-[calc(100dvh-2rem)] flex flex-col rounded-2xl">
         <div className="h-12 shrink-0 px-4 flex items-center justify-between border-b border-white/5">
           <div id={labelledBy} className="flex items-center gap-2 text-sm font-semibold">
             <span className="size-6 rounded-lg bg-brand/15 text-brand-soft grid place-items-center">{icon}</span>
