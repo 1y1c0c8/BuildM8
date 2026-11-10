@@ -1,0 +1,66 @@
+{
+  "schema": "buildm8.assembly/v1",
+  "packageId": "taiwan_hardware_store_v1",
+  "title": "錯誤：4 分水管接 6 分三通",
+  "summary": "驗證工具測試用（刻意做錯的設計）。",
+  "steps": [
+    "測試用"
+  ],
+  "_expect": {
+    "exit": 1,
+    "codes": [
+      "pipe_size_mismatch"
+    ]
+  },
+  "items": [
+    {
+      "partId": "gi_flange",
+      "params": {
+        "size": "15A"
+      },
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "gi_pipe",
+      "params": {
+        "size": "15A",
+        "length": 200
+      },
+      "position": [
+        0,
+        117,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "gi_tee",
+      "params": {
+        "size": "20A"
+      },
+      "position": [
+        0,
+        237,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        90
+      ]
+    }
+  ]
+}

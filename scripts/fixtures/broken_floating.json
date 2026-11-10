@@ -1,0 +1,441 @@
+{
+  "schema": "buildm8.assembly/v1",
+  "packageId": "taiwan_hardware_store_v1",
+  "title": "錯誤：懸空的華司",
+  "summary": "驗證工具測試用（刻意做錯的設計）。",
+  "steps": [
+    "測試用"
+  ],
+  "_expect": {
+    "exit": 1,
+    "codes": [
+      "floating",
+      "nut_not_on_rod"
+    ]
+  },
+  "items": [
+    {
+      "partId": "plywood_panel",
+      "params": {
+        "width": 200,
+        "depth": 200,
+        "thickness": 12,
+        "pattern": "corners"
+      },
+      "position": [
+        0,
+        60,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "threaded_rod",
+      "params": {
+        "size": "M8",
+        "length": 100
+      },
+      "position": [
+        -85,
+        50,
+        -85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "hex_nut",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        -85,
+        49.2,
+        -85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "washer",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        -85,
+        53.2,
+        -85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "washer",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        -85,
+        66.8,
+        -85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "hex_nut",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        -85,
+        70.9,
+        -85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "cap_nut",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        -85,
+        92,
+        -85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "threaded_rod",
+      "params": {
+        "size": "M8",
+        "length": 100
+      },
+      "position": [
+        85,
+        50,
+        -85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "hex_nut",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        85,
+        49.2,
+        -85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "washer",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        85,
+        53.2,
+        -85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "washer",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        85,
+        66.8,
+        -85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "hex_nut",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        85,
+        70.9,
+        -85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "cap_nut",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        85,
+        92,
+        -85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "threaded_rod",
+      "params": {
+        "size": "M8",
+        "length": 100
+      },
+      "position": [
+        -85,
+        50,
+        85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "hex_nut",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        -85,
+        49.2,
+        85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "washer",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        -85,
+        53.2,
+        85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "washer",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        -85,
+        66.8,
+        85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "hex_nut",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        -85,
+        70.9,
+        85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "cap_nut",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        -85,
+        92,
+        85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "threaded_rod",
+      "params": {
+        "size": "M8",
+        "length": 100
+      },
+      "position": [
+        85,
+        50,
+        85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "hex_nut",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        85,
+        49.2,
+        85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "washer",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        85,
+        53.2,
+        85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "washer",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        85,
+        66.8,
+        85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "hex_nut",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        85,
+        70.9,
+        85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "cap_nut",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        85,
+        92,
+        85
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "washer",
+      "params": {
+        "size": "M8"
+      },
+      "position": [
+        0,
+        250,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}
