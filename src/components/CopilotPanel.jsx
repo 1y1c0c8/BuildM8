@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ManualBridgeDialog } from './ManualBridge'
 import { useStore } from '../store/useStore'
 import { getPackage } from '../data/packages'
 import { runCopilot, validateAssembly, STAGES } from '../ai/copilot'
@@ -86,7 +87,22 @@ export function useCopilotChat() {
     [busy],
   )
 
-  return { messages, send, runMockJson, stage, busy }
+  /** 手動橋接：使用者從 claude.ai 貼回的設計（已解析的 raw assembly）→ 驗證並拼裝 */
+  const importAssembly = useCallback((raw, request) => {
+    const pkg = getPackage(useStore.getState().packageId)
+    const assembly = validateAssembly(raw, pkg)
+    if (!assembly.items.length) throw new Error('這份設計裡沒有可用的零件（partId 都不在目前的零件包中）。')
+    const uid = Math.random().toString(36).slice(2)
+    useStore.getState().loadAssembly(assembly)
+    setMessages((m) => [
+      ...m,
+      { id: `u${uid}`, role: 'user', text: `📋 ${request?.trim() || '貼上 Claude 的設計'}` },
+      { id: `a${uid}`, role: 'assistant', text: assembly.summary || '已依照 Claude 的設計拼裝到畫布。', assembly, source: 'claude.ai（手動）' },
+    ])
+    return assembly
+  }, [])
+
+  return { messages, send, runMockJson, importAssembly, stage, busy }
 }
 
 /** 回傳穩定的字串鍵，避免每次 render 產生新物件 */
@@ -98,8 +114,9 @@ function selectEngineStable(s) {
 }
 
 export function CopilotPanel({ chat }) {
-  const { messages, send, stage, busy } = chat
+  const { messages, send, stage, busy, importAssembly } = chat
   const [input, setInput] = useState('')
+  const [manualOpen, setManualOpen] = useState(false)
   const effective = useKeyStore(selectEngineStable)
   const openSettings = useKeyStore((s) => s.openSettings)
   const openUnlock = useKeyStore((s) => s.openUnlock)
@@ -156,6 +173,17 @@ export function CopilotPanel({ chat }) {
       </div>
 
       <div className="px-3 pb-3 pt-1 shrink-0">
+        <button
+          type="button"
+          data-testid="open-manual-bridge"
+          onClick={() => setManualOpen(true)}
+          disabled={busy}
+          className="mb-2 w-full h-9 md:h-8 px-3 rounded-lg text-[12px] font-medium flex items-center gap-2 bg-violet-500/10 border border-violet-400/20 text-violet-200 hover:bg-violet-500/15 hover:border-violet-400/40 transition disabled:opacity-40"
+        >
+          <span aria-hidden>📋</span>
+          用我的 Claude 帳號生成
+          <span className="ml-auto text-[10px] text-violet-300/80">免 API 費用</span>
+        </button>
         <div className="flex gap-1.5 overflow-x-auto scroll-thin pb-2">
           {SUGGESTIONS.map((s) => (
             <button
@@ -189,6 +217,17 @@ export function CopilotPanel({ chat }) {
           </button>
         </form>
       </div>
+      {manualOpen && (
+        <ManualBridgeDialog
+          initialRequest={input}
+          onClose={() => setManualOpen(false)}
+          onImport={(raw, request) => {
+            importAssembly(raw, request)
+            setInput('')
+            setManualOpen(false)
+          }}
+        />
+      )}
     </section>
   )
 }
