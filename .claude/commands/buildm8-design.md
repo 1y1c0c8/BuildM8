@@ -59,7 +59,7 @@ npm run validate-design -- designs/.work/<slug>-X.json
 
 ## 6. 回報使用者
 
-簡短列出：最終檔案路徑、尺寸、零件數、估價、驗證結果、兩個概念各自的取捨（為什麼選這個）、如何匯入網站、若要修改可以怎麼說（例：「/design 把 designs/<slug>.json 改成 M6 螺絲，高度降到 25 公分」——此時跳過步驟 1–2，直接由 design-engineer 修改該檔再審查）。提醒：好的設計建議 `git add designs/<slug>.json designs/<slug>.md` 提交保存。
+簡短列出：最終檔案路徑、尺寸、零件數、估價、驗證結果、兩個概念各自的取捨（為什麼選這個）、如何匯入網站、若要修改可以怎麼說（例：「/buildm8-design 把 designs/<slug>.json 改成 M6 螺絲，高度降到 25 公分」——此時跳過步驟 1–2，直接由 design-engineer 修改該檔再審查）。提醒：好的設計建議 `git add designs/<slug>.json designs/<slug>.md` 提交保存。
 
 ## 用量提醒
 
