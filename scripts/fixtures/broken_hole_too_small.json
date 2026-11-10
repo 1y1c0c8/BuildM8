@@ -1,0 +1,50 @@
+{
+  "schema": "buildm8.assembly/v1",
+  "packageId": "taiwan_hardware_store_v1",
+  "title": "錯誤：M10 螺條穿過 Ø8.5 孔",
+  "summary": "驗證工具測試用（刻意做錯的設計）。",
+  "steps": [
+    "測試用"
+  ],
+  "_expect": {
+    "exit": 1,
+    "codes": [
+      "hole_too_small"
+    ]
+  },
+  "items": [
+    {
+      "partId": "perforated_bar",
+      "params": {
+        "length": 300
+      },
+      "position": [
+        0,
+        1,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "partId": "threaded_rod",
+      "params": {
+        "size": "M10",
+        "length": 100
+      },
+      "position": [
+        7.5,
+        50,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}
