@@ -23,7 +23,13 @@ export const IconBox = (p) => <I {...p} d="M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5
 export const IconX = (p) => <I {...p} d="M18 6L6 18M6 6l12 12" />
 export const IconCheck = (p) => <I {...p} d="M20 6L9 17l-5-5" />
 export const IconKeyboard = (p) => <I {...p}><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" /></I>
-export const IconDownload = (p) => <I {...p} d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+export const IconKey = (p) => <I {...p}><circle cx="7.5" cy="15.5" r="4.5" /><path d="M10.7 12.3L21 2M16 7l3 3M18.5 4.5l2 2" /></I>
+export const IconLock = (p) => <I {...p}><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></I>
+export const IconUnlock = (p) => <I {...p}><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 7.8-1.2" /></I>
+export const IconEye = (p) => <I {...p}><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></I>
+export const IconEyeOff = (p) => <I {...p} d="M3 3l18 18M10.6 5.1A10.8 10.8 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.6 6.6A17.6 17.6 0 0 0 2 12s3.6 7 10 7a10 10 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+export const IconShield = (p) => <I {...p} d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+export const IconDownload =(p) => <I {...p} d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
 
 /** 零件縮圖：依 geometry.type 畫等角示意 */
 export function PartGlyph({ type, className = '' }) {

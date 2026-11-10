@@ -1,6 +1,7 @@
 import { useStore } from '../store/useStore'
 import { PACKAGE_CATALOG } from '../data/packages'
-import { IconMagnet, IconMove, IconRedo, IconRotate, IconSparkle, IconTrash, IconUndo } from './Icons'
+import { selectKeyStatus, useKeyStore } from '../store/useKeyStore'
+import { IconKey, IconLock, IconMagnet, IconMove, IconRedo, IconRotate, IconSparkle, IconTrash, IconUndo } from './Icons'
 
 export function Logo() {
   return (
@@ -111,6 +112,8 @@ export function TopBar({ onMockGenerate, generating }) {
         </IconBtn>
       </div>
 
+      <KeyButton />
+
       <button
         onClick={onMockGenerate}
         disabled={generating}
@@ -131,6 +134,27 @@ function IconBtn({ children, ...p }) {
       className="size-8 grid place-items-center rounded-lg text-ink-300 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent transition"
     >
       {children}
+    </button>
+  )
+}
+
+/** 頂部「AI 金鑰」入口：顯示目前狀態，點擊開啟設定（上鎖時開啟解鎖畫面） */
+function KeyButton() {
+  const status = useKeyStore(selectKeyStatus)
+  const openSettings = useKeyStore((s) => s.openSettings)
+  const openUnlock = useKeyStore((s) => s.openUnlock)
+  const dot = { none: 'bg-ink-400', unlocked: 'bg-emerald-400', locked: 'bg-amber-400' }[status]
+  const label = { none: '未設定金鑰', unlocked: '金鑰已解鎖', locked: '金鑰已上鎖' }[status]
+  return (
+    <button
+      data-testid="topbar-key"
+      onClick={status === 'locked' ? openUnlock : openSettings}
+      title={`AI 設定 · ${label}`}
+      className="h-8 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 border bg-ink-800 border-white/5 text-ink-300 hover:text-white hover:border-white/15 transition"
+    >
+      {status === 'locked' ? <IconLock size={14} /> : <IconKey size={14} />}
+      <span>AI 設定</span>
+      <span className={`size-1.5 rounded-full ${dot}`} />
     </button>
   )
 }

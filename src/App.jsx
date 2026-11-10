@@ -4,6 +4,7 @@ import { TopBar } from './components/TopBar'
 import { Sidebar } from './components/Sidebar'
 import { CopilotPanel, useCopilotChat } from './components/CopilotPanel'
 import { BomPanel } from './components/BomPanel'
+import { KeyLayer } from './components/KeyDialogs'
 import { Inspector } from './components/Inspector'
 import { IconKeyboard, IconSparkle, IconBox } from './components/Icons'
 import { useStore } from './store/useStore'
@@ -29,6 +30,7 @@ export default function App() {
           <BomPanel />
         </aside>
       </div>
+      <KeyLayer />
     </div>
   )
 }
