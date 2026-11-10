@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { getPackage } from '../data/packages'
-import { PartGlyph, IconSearch } from './Icons'
+import { useSidebar } from '../store/useSidebar'
+import { PartGlyph, IconSearch, IconChevron, IconGrid, IconBox } from './Icons'
 
 const CATS = [
   { key: 'all', label: '全部' },
@@ -13,12 +14,13 @@ const CATS = [
 ]
 const CAT_GROUP = { bracket: 'profile', fitting: 'pipe' }
 
-export function Sidebar() {
+function SidebarPanel({ collapsed, toggleRef }) {
   const packageId = useStore((s) => s.packageId)
   const addPart = useStore((s) => s.addPart)
   const pkg = getPackage(packageId)
   const [q, setQ] = useState('')
-  const [cat, setCat] = useState('all')
+  const cat = useSidebar((s) => s.cat)
+  const setCat = useSidebar((s) => s.setCat)
 
   const parts = useMemo(() => {
     const k = q.trim().toLowerCase()
@@ -31,14 +33,23 @@ export function Sidebar() {
   }, [pkg, q, cat])
 
   return (
-    <aside className="w-[272px] shrink-0 flex flex-col border-r border-white/[0.06] bg-ink-900/70 backdrop-blur-xl z-10">
+    <aside
+      id="parts-sidebar"
+      aria-label="零件庫"
+      aria-hidden={collapsed}
+      inert={collapsed}
+      className={`w-[272px] h-full flex flex-col transition-opacity duration-200 ease-out ${collapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+    >
       <div className="p-3 pb-2">
         <div className="flex items-center justify-between mb-2.5">
           <div>
             <div className="text-[11px] uppercase tracking-[.14em] text-ink-400 font-semibold">Hardware Package</div>
             <div className="text-sm font-semibold mt-0.5">{pkg.name}</div>
           </div>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-ink-300 border border-white/5">v{pkg.version}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-ink-300 border border-white/5">v{pkg.version}</span>
+            <CollapseToggle ref={toggleRef} collapsed={false} />
+          </div>
         </div>
         <div className="flex flex-wrap gap-1 mb-2.5">
           {pkg.standards.map((s) => (
@@ -102,5 +113,102 @@ export function Sidebar() {
         零件以標準參數即時生成（無 3D 檔）。未來可透過 Provider 從 TraceParts / PARTcommunity / McMaster-Carr 匯入。
       </div>
     </aside>
+  )
+}
+
+/** 收合軌道上的分類圖示（未列出的分類以方塊圖示代替） */
+const CAT_ICON = {
+  fastener: 'hex_nut',
+  rod: 'threaded_rod',
+  profile: 'l_bracket',
+  pipe: 'tee',
+  panel: 'panel',
+}
+
+const RAIL_W = 52
+
+function CollapseToggle({ collapsed, ref }) {
+  const toggle = useSidebar((s) => s.toggle)
+  const label = collapsed ? '展開零件庫 ([)' : '收合零件庫 ([)'
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={toggle}
+      aria-expanded={!collapsed}
+      aria-controls="parts-sidebar"
+      aria-label={label}
+      title={label}
+      className="size-7 shrink-0 rounded-lg grid place-items-center text-ink-400 hover:text-white hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 transition"
+    >
+      <IconChevron size={16} className={`transition-transform duration-200 ${collapsed ? '-rotate-90' : 'rotate-90'}`} />
+    </button>
+  )
+}
+
+export function Sidebar() {
+  const collapsed = useSidebar((s) => s.collapsed)
+  const cat = useSidebar((s) => s.cat)
+  const openCategory = useSidebar((s) => s.openCategory)
+  const wrapRef = useRef(null)
+  const panelToggleRef = useRef(null)
+  const railToggleRef = useRef(null)
+  const prevCollapsed = useRef(collapsed)
+
+  // 收合／展開後，若焦點原本在側欄內，移到另一側的切換鈕，避免焦點掉進 inert 區塊
+  useEffect(() => {
+    if (prevCollapsed.current === collapsed) return
+    prevCollapsed.current = collapsed
+    const wrap = wrapRef.current
+    const active = document.activeElement
+    if (!wrap || (active && active !== document.body && !wrap.contains(active))) return
+    ;(collapsed ? railToggleRef : panelToggleRef).current?.focus({ preventScroll: true })
+  }, [collapsed])
+
+  return (
+    <div
+      ref={wrapRef}
+      style={{ width: collapsed ? RAIL_W : 272 }}
+      className="relative shrink-0 overflow-hidden border-r border-white/[0.06] bg-ink-900/70 backdrop-blur-xl z-10 transition-[width] duration-200 ease-out"
+    >
+      <SidebarPanel collapsed={collapsed} toggleRef={panelToggleRef} />
+
+      <nav
+        aria-label="零件分類"
+        aria-hidden={!collapsed}
+        inert={!collapsed}
+        style={{ width: RAIL_W }}
+        className={`absolute inset-y-0 left-0 flex flex-col items-center gap-1 py-3 transition-opacity duration-200 ease-out ${
+          collapsed ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        <CollapseToggle ref={railToggleRef} collapsed />
+        <div className="w-6 h-px bg-white/[0.06] my-1.5" />
+        {CATS.map((c) => {
+          const glyph = CAT_ICON[c.key]
+          const active = cat === c.key
+          return (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => openCategory(c.key)}
+              title={`${c.label}（展開零件庫）`}
+              aria-label={`展開零件庫：${c.label}`}
+              className={`size-9 rounded-lg grid place-items-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 ${
+                active ? 'bg-white/[0.08] text-brand' : 'text-ink-400 hover:text-white hover:bg-white/[0.06]'
+              }`}
+            >
+              {c.key === 'all' ? (
+                <IconGrid size={16} />
+              ) : glyph ? (
+                <PartGlyph type={glyph} className="size-6" />
+              ) : (
+                <IconBox size={16} />
+              )}
+            </button>
+          )
+        })}
+      </nav>
+    </div>
   )
 }
