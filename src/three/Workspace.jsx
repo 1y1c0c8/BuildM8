@@ -17,6 +17,7 @@ import { applySnap, worldAnchors } from './snapping'
 import { registry } from './registry'
 import { S } from './geometry'
 import { useBreakpoint } from '../hooks/useBreakpoint'
+import { setCaptureTarget } from './capture'
 
 const RAD = 180 / Math.PI
 
@@ -88,6 +89,7 @@ function Scene() {
       <SnapHint />
       <DropBridge />
       <CameraRig />
+      <CaptureBridge />
 
       <OrbitControls
         ref={(c) => (registry.controls = c)}
@@ -237,6 +239,16 @@ function DropBridge() {
     }
     return () => (registry.dropAt = null)
   }, [camera])
+  return null
+}
+
+/** 讓畫布外的按鈕可以截圖（見 capture.js；不需開 preserveDrawingBuffer） */
+function CaptureBridge() {
+  const { gl, scene, camera } = useThree()
+  useEffect(() => {
+    setCaptureTarget({ gl, scene, camera })
+    return () => setCaptureTarget(null)
+  }, [gl, scene, camera])
   return null
 }
 

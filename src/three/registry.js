@@ -6,4 +6,5 @@ export const registry = {
   lastDragEnd: 0,
   dropAt: null, // (clientX, clientY, rect) => [x,y,z] mm
   controls: null, // OrbitControls
+  captureTarget: null, // { gl, scene, camera }，截圖用（capture.js）
 }
