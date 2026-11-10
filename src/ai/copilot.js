@@ -101,7 +101,7 @@ export async function runCopilot(text, { pkg, mode = 'mock', apiKey, onStage = (
     if (!intent.intent) {
       return {
         kind: 'clarify',
-        text: '我還不太確定你想做什麼 🤔 目前 Mock 模式認得：「方形時鐘外殼」、「CD 收納展示架」、「簡易方形框架」、「工業風水管層架」。也可以在右上角 ⚙ 設定 Claude API 金鑰，讓真正的 AI 自由設計。',
+        text: '我還不太確定你想做什麼 🤔 目前 Mock 模式認得：「方形時鐘外殼」、「CD 收納展示架」、「簡易方形框架」、「工業風水管層架」。想自由設計的話，可以按下方「用我的 Claude 帳號生成」（免 API 費用），或在 ⚙ 設定 Claude API 金鑰。',
       }
     }
     raw = intent.intent.builder(pkg, dimsFor(intent))
@@ -148,7 +148,7 @@ export function packageCatalogForLLM(pkg) {
   }))
 }
 
-const SYSTEM_PROMPT = (pkg) => `你是 BuildM8 的五金共創夥伴，協助 DIY 新手用台灣五金行買得到的標準件設計生活用品。
+export const buildSystemPrompt = (pkg) => `你是 BuildM8 的五金共創夥伴，協助 DIY 新手用台灣五金行買得到的標準件設計生活用品。
 只能使用下方 Package 目錄中的 partId。輸出一份可直接在 3D 畫布拼裝的組合矩陣。
 
 規格（尺寸家族）：
@@ -197,7 +197,7 @@ export async function generateWithClaude(text, pkg, apiKey) {
       effort: 'medium',
       format: { type: 'json_schema', schema: ASSEMBLY_JSON_SCHEMA },
     },
-    system: SYSTEM_PROMPT(pkg),
+    system: buildSystemPrompt(pkg),
     messages: [{ role: 'user', content: text }],
   })
   if (response.stop_reason === 'refusal') {
@@ -207,4 +207,80 @@ export async function generateWithClaude(text, pkg, apiKey) {
   const textBlock = response.content.find((b) => b.type === 'text')
   if (!textBlock) throw new Error('AI 沒有回傳設計內容。')
   return JSON.parse(textBlock.text)
+}
+
+// ---------------------------------------------------------------------------
+// ③-c 手動橋接：複製提示詞到 claude.ai（使用者自己的訂閱）→ 貼回 JSON
+//      不經過 API，不需要金鑰，也不產生 API 費用。
+// ---------------------------------------------------------------------------
+
+const MANUAL_EXAMPLE = {
+  title: '範例：M8 螺條立柱',
+  summary: '一句話說明設計理念',
+  steps: ['步驟一', '步驟二'],
+  items: [
+    { partId: 'threaded_rod', params: { size: 'M8', length: 300, width: null, depth: null, thickness: null, pattern: null }, position: [0, 150, 0], rotation: [0, 0, 0] },
+    { partId: 'hex_nut', params: { size: 'M8', length: null, width: null, depth: null, thickness: null, pattern: null }, position: [0, 3.25, 0], rotation: [0, 0, 0] },
+  ],
+}
+
+/** 產生可直接貼到 claude.ai 的完整提示詞 */
+export function buildManualPrompt(request, pkg) {
+  return `${buildSystemPrompt(pkg)}
+
+────────────────────────
+輸出格式（非常重要）：
+- 只回覆「一個 JSON 物件」，不要任何前言、說明或結語；可以用 \`\`\`json 程式碼框包起來。
+- 請直接在對話中輸出 JSON，不要建立 Artifact 或檔案。
+- JSON 結構必須符合這份 JSON Schema：
+${JSON.stringify(ASSEMBLY_JSON_SCHEMA)}
+- 範例（只示範格式，內容請依需求設計）：
+${JSON.stringify(MANUAL_EXAMPLE)}
+
+────────────────────────
+使用者需求：
+${request.trim()}`
+}
+
+/**
+ * 解析使用者從 claude.ai 貼回來的文字：容許前後說明文字、\`\`\`json 程式碼框、
+ * 或只有 items 陣列。失敗時丟出繁體中文錯誤訊息。
+ */
+export function parseAssemblyText(text) {
+  const src = String(text ?? '').replace(/^\uFEFF/, '').trim()
+  if (!src) throw new Error('還沒有貼上內容。')
+  const candidates = []
+  for (const m of src.matchAll(/\`\`\`(?:json|JSON)?\s*([\s\S]*?)\`\`\`/g)) candidates.push(m[1].trim())
+  const first = src.search(/[[{]/)
+  if (first >= 0) {
+    const lastObj = src.lastIndexOf('}')
+    const lastArr = src.lastIndexOf(']')
+    const last = Math.max(lastObj, lastArr)
+    if (last > first) candidates.push(src.slice(first, last + 1))
+  }
+  candidates.push(src)
+  let parsed
+  let lastErr
+  for (const c of candidates) {
+    try {
+      parsed = JSON.parse(c)
+      break
+    } catch (e) {
+      lastErr = e
+    }
+  }
+  if (parsed === undefined) {
+    throw new Error(`看不懂這段內容，請確認有完整複製 Claude 回覆的 JSON（${lastErr?.message ?? '格式錯誤'}）。若回覆被截斷，請請 Claude「繼續」後把完整 JSON 一起貼上。`)
+  }
+  if (Array.isArray(parsed)) parsed = { items: parsed }
+  if (parsed && Array.isArray(parsed.assembly?.items)) parsed = parsed.assembly
+  if (!parsed || !Array.isArray(parsed.items) || !parsed.items.length) {
+    throw new Error('JSON 裡找不到 items 零件清單。請確認貼上的是 Claude 依照提示詞輸出的設計結果。')
+  }
+  return {
+    title: parsed.title || '來自 Claude 的設計',
+    summary: parsed.summary || '',
+    steps: Array.isArray(parsed.steps) ? parsed.steps.map(String) : [],
+    items: parsed.items,
+  }
 }
